@@ -1,0 +1,188 @@
+{
+  "project_name": "桥跨工况簿",
+  "project_shape": "fullstack",
+  "modules": [
+    {
+      "id": "desk",
+      "name": "浏览器作业台",
+      "paths": [
+        "web/index.html",
+        "web/app.js"
+      ]
+    },
+    {
+      "id": "intake",
+      "name": "原始三源解析",
+      "paths": [
+        "girder/intake.py",
+        "girder/plan.py",
+        "girder/position_input.py",
+        "girder/reading_input.py"
+      ]
+    },
+    {
+      "id": "placement",
+      "name": "驻位质量核对",
+      "paths": [
+        "girder/placement.py",
+        "girder/loadcase.py"
+      ]
+    },
+    {
+      "id": "pairing",
+      "name": "窗口同刻配对",
+      "paths": [
+        "girder/windows.py",
+        "girder/alignment.py"
+      ]
+    },
+    {
+      "id": "reduction",
+      "name": "位移与断面归约",
+      "paths": [
+        "girder/phase_samples.py",
+        "girder/deflection.py",
+        "girder/repeats.py",
+        "girder/envelopes.py"
+      ]
+    },
+    {
+      "id": "evidence",
+      "name": "草稿和归档追溯",
+      "paths": [
+        "girder/trace.py",
+        "girder/inventory.py",
+        "girder/archived_trace.py"
+      ]
+    },
+    {
+      "id": "review",
+      "name": "草稿裁定",
+      "paths": [
+        "girder/draft.py",
+        "girder/review.py"
+      ]
+    },
+    {
+      "id": "store",
+      "name": "SQLite 保存和读快照",
+      "paths": [
+        "girder/store.py",
+        "girder/runs.py"
+      ]
+    },
+    {
+      "id": "release",
+      "name": "签出与比较",
+      "paths": [
+        "girder/editions.py",
+        "girder/compare.py"
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "id": "intake",
+      "name": "导入试验资料",
+      "entry": "POST /api/holds",
+      "module_ids": [
+        "desk",
+        "intake",
+        "store"
+      ],
+      "steps": [
+        "读取三源",
+        "验证引用和窗口",
+        "按输入摘要入库"
+      ],
+      "success": "重复内容复用同一份资料",
+      "failure": "窗口冲突返回 400 且无落库",
+      "verification": "intake-invalid、intake"
+    },
+    {
+      "id": "reduction",
+      "name": "核对驻位与归约位移",
+      "entry": "GET /api/holds/{id}",
+      "module_ids": [
+        "placement",
+        "pairing",
+        "reduction",
+        "store"
+      ],
+      "steps": [
+        "逐轴核对",
+        "归属窗口并同刻配对",
+        "依覆盖情况计算三相结果"
+      ],
+      "success": "H1 跨中内侧驻载为 -119 μm，残余为 4 μm",
+      "failure": "缺两条同刻参考时只影响共享参考的两个测点",
+      "verification": "placement、pairing、responses、repeats、envelopes、coverage"
+    },
+    {
+      "id": "trace",
+      "name": "回查原始证据",
+      "entry": "GET /api/holds/{id}/trace 或 /inventory",
+      "module_ids": [
+        "intake",
+        "store",
+        "evidence",
+        "reduction"
+      ],
+      "steps": [
+        "读取同代次原始输入",
+        "按归约事实定位行或查询库存",
+        "返回源行号及内容"
+      ],
+      "success": "配对指向原始采样，窗外行可单独列出",
+      "failure": "未知轮次测点返回 404",
+      "verification": "trace、inventory"
+    },
+    {
+      "id": "adjudication",
+      "name": "裁定和恢复原始行",
+      "entry": "POST /api/holds/{id}/review",
+      "module_ids": [
+        "store",
+        "review",
+        "pairing",
+        "reduction"
+      ],
+      "steps": [
+        "读取证据并提交理由",
+        "事务内核对代次和行状态",
+        "按新代次计算"
+      ],
+      "success": "排除和恢复可复核",
+      "failure": "过期代次返回 409，阻止重复修改",
+      "verification": "review、coverage、restore"
+    },
+    {
+      "id": "archive",
+      "name": "签出、对比和历史回查",
+      "entry": "POST /api/holds/{id}/release",
+      "module_ids": [
+        "store",
+        "release",
+        "evidence",
+        "reduction"
+      ],
+      "steps": [
+        "校验完整覆盖和最新代次",
+        "冻结并保存证据包",
+        "按签出版比对及回查"
+      ],
+      "success": "同代次可幂等签出，旧证据独立读取",
+      "failure": "缺覆盖时禁止签出",
+      "verification": "release、compare、archive、download"
+    }
+  ],
+  "complexity": {
+    "mechanisms": [
+      "互斥半开窗口索引",
+      "共享参考的同刻证据配对",
+      "逐轴与全轮门控",
+      "按草稿代次提交裁定",
+      "签出快照和证据对比"
+    ]
+  }
+}

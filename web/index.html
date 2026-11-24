@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>桥跨工况簿</title>
+  <link rel="stylesheet" href="/web/css/base.css">
+  <link rel="stylesheet" href="/web/css/workbench.css">
+  <link rel="stylesheet" href="/web/css/evidence.css">
+  <script type="module" src="/web/app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="brand"><span class="bridge-mark" aria-hidden="true"></span><span>桥跨工况簿</span></div>
+    <div class="mast-actions"><button id="sample" class="quiet">载入演练样本</button><button id="open-intake" class="accent">导入资料</button></div>
+  </header>
+  <main>
+    <div class="workspace-head">
+      <div><p class="eyebrow">静载试验资料</p><h1 id="title">工况复核</h1></div>
+      <div class="selection"><label for="run">试验资料</label><select id="run"></select></div>
+    </div>
+    <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+    <section id="empty" class="empty" hidden>
+      <span class="span-mark" aria-hidden="true"></span><h2>等待首份试验资料</h2>
+      <p>导入计划、逐轴驻位表与位移采样表，或使用演练样本查看归约和签出。</p>
+      <button id="empty-sample" class="accent">载入演练样本</button>
+    </section>
+    <div id="workbench" hidden>
+      <section class="summary" aria-label="试验概况">
+        <div><span>草稿代次</span><strong id="revision"></strong></div>
+        <div><span>驻位有效轮次</span><strong id="placed"></strong></div>
+        <div><span>证据齐全测点项</span><strong id="complete"></strong></div>
+        <div><span>资料状态</span><strong id="ready"></strong></div>
+      </section>
+      <nav class="tabs" aria-label="试验资料视图">
+        <button type="button" data-view="review" aria-pressed="true">工况复核</button>
+        <button type="button" data-view="profiles" aria-pressed="false">断面与复测</button>
+        <button type="button" data-view="raw" aria-pressed="false">原始记录</button>
+        <button type="button" data-view="editions" aria-pressed="false">签出与比对</button>
+      </nav>
+      <section id="review" class="view">
+        <div class="section-head"><div><h2>按轮次检查位移</h2><p>选择测点回查驻位行和同刻配对。</p></div><div class="selection"><label for="filter">轮次</label><select id="filter"></select></div></div>
+        <div id="rounds" class="rounds"></div>
+        <div id="response-table" class="table-wrap"></div>
+      </section>
+      <section id="profiles" class="view" hidden>
+        <div class="section-head"><div><h2>断面包络</h2><p>下挠为负值，单位为微米。区间端点保留所有并列控制项。</p></div></div>
+        <div id="envelopes" class="envelopes"></div>
+        <h2 class="section-subtitle">同工况重复性</h2><div id="repeats" class="table-wrap"></div>
+      </section>
+      <section id="raw" class="view" hidden>
+        <div class="section-head"><div><h2>原始记录</h2><p>按来源和归约状态查找原始行，窗外记录也可回查。</p></div></div>
+        <form id="inventory-form" class="diff-form">
+          <label>来源<select id="inventory-kind"><option value="reading">位移采样</option><option value="position">逐轴驻位</option></select></label>
+          <label>状态<select id="inventory-state"><option value="all">全部</option><option value="active">参与归约</option><option value="excluded">已排除</option><option value="outside">窗外</option></select></label>
+          <label>行号或通道<input id="inventory-match" maxlength="40" type="search"></label><button>查询</button>
+        </form>
+        <div id="inventory-table" class="table-wrap"></div>
+        <div class="pagination"><button id="inventory-prev" type="button">上一页</button><span id="inventory-page" aria-live="polite"></span><button id="inventory-next" type="button">下一页</button></div>
+      </section>
+      <section id="editions" class="view" hidden>
+        <div class="section-head"><div><h2>归约签出</h2><p>签出版冻结输入、裁定和结果。</p></div><button id="release" class="accent">签出当前代次</button></div>
+        <div id="edition-list" class="table-wrap"></div>
+        <form id="diff-form" class="diff-form">
+          <label>对照版<select id="before" required></select></label><label>目标版<select id="after" required></select></label><button>比对</button>
+        </form>
+        <div id="diff" class="table-wrap"></div>
+      </section>
+      <details class="journal"><summary>逐行裁定记录</summary><div id="journal" class="table-wrap"></div></details>
+    </div>
+  </main>
+  <dialog id="intake">
+    <form id="intake-form" class="modal-content">
+      <header class="section-head"><h2>导入试验资料</h2><button type="button" data-close="intake" class="quiet">关闭</button></header>
+      <label>试验计划 <input id="plan-file" type="file" accept=".json,application/json" required></label>
+      <label>逐轴驻位表 <input id="positions-file" type="file" accept=".csv,text/csv" required></label>
+      <label>位移采样表 <input id="readings-file" type="file" accept=".csv,text/csv" required></label>
+      <p id="intake-error" class="form-error" role="alert"></p><button class="accent">校验并导入</button>
+    </form>
+  </dialog>
+  <dialog id="archive" aria-labelledby="archive-title">
+    <div class="modal-content">
+      <header class="section-head">
+        <h2 id="archive-title">签出版证据</h2>
+        <button type="button" data-close="archive" class="quiet">关闭</button>
+      </header>
+      <p id="archive-meta"></p>
+      <label id="archive-picker">轮次与测点 <select id="archive-coordinate"></select></label>
+      <p id="archive-response" aria-live="polite"></p>
+      <div id="archive-body"></div>
+    </div>
+  </dialog>
+  <dialog id="trace">
+    <div class="modal-content">
+      <header class="section-head"><h2 id="trace-title">原始证据</h2><button type="button" data-close="trace" class="quiet">关闭</button></header>
+      <p id="trace-summary"></p><div id="trace-body"></div>
+      <form id="decision" class="decision">
+        <h3 id="decision-title">排除原始行</h3>
+        <label>裁定理由<input id="reason" required maxlength="160" placeholder="例如：该读数的参考夹具松动"></label>
+        <button id="decision-submit" disabled>确认裁定</button><p id="decision-error" class="form-error" role="alert"></p>
+      </form>
+    </div>
+  </dialog>
+</body>
+</html>

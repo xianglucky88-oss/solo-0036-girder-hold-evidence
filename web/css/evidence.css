@@ -1,0 +1,71 @@
+dialog {
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  width: min(560px,calc(100% - 1.75rem));
+  color: var(--ink);
+  max-height: 85vh;
+  box-shadow: 0 15px 70px #1b103a50;
+}
+
+dialog::backdrop {
+  background: #20173188;
+}
+
+#trace {
+  width: min(930px,calc(100% - 1.75rem));
+}
+
+.modal-content {
+  padding: 1.2rem;
+  display: grid;
+  gap: .75rem;
+}
+
+.modal-content label,.decision label {
+  display: grid;
+  gap: .35rem;
+  font-weight: 640;
+}
+
+.form-error {
+  color: var(--amber);
+  font-size: .86rem;
+}
+
+.form-error:empty {
+  display: none;
+}
+
+.trace-group {
+  margin: .8rem 0;
+}
+
+.trace-group h3 {
+  padding: .15rem 0;
+}
+
+.trace-group .table-wrap {
+  max-height: 18rem;
+}
+
+.decision {
+  display: grid;
+  gap: .45rem;
+  background: #f4effa;
+  border-radius: 7px;
+  padding: .75rem;
+}
+
+.decision button {
+  justify-self: start;
+}
+
+.decision input {
+  width: 100%;
+}
+
+#trace-summary {
+  color: var(--muted);
+  font-size: .9rem;
+}

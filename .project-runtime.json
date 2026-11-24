@@ -1,0 +1,35 @@
+{
+  "project_shape": "fullstack",
+  "language": "Python 3.9+ / HTML / JavaScript / CSS",
+  "testing": "deferred",
+  "source_extensions": [
+    ".py",
+    ".js",
+    ".css",
+    ".html"
+  ],
+  "start_command": "python3 -B -m girder",
+  "build_command": "python3 -B -m tools.build",
+  "workflow_checks": [
+    {
+      "workflow_id": "intake",
+      "command": "python3 -B -m tools.verify_workflow"
+    },
+    {
+      "workflow_id": "reduction",
+      "command": "python3 -B -m tools.verify_workflow"
+    },
+    {
+      "workflow_id": "trace",
+      "command": "python3 -B -m tools.verify_workflow"
+    },
+    {
+      "workflow_id": "adjudication",
+      "command": "python3 -B -m tools.verify_workflow"
+    },
+    {
+      "workflow_id": "archive",
+      "command": "python3 -B -m tools.verify_workflow"
+    }
+  ]
+}

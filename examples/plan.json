@@ -1,0 +1,125 @@
+{
+  "id": "LUTING_A",
+  "label": "鹭汀试验跨",
+  "span_mm": 24000,
+  "references": [
+    "REF_A",
+    "REF_B"
+  ],
+  "points": [
+    {
+      "id": "Q1",
+      "label": "四分点",
+      "station_mm": 6000,
+      "reference": "REF_A",
+      "sign": 1
+    },
+    {
+      "id": "MID_I",
+      "label": "跨中内侧",
+      "station_mm": 12000,
+      "reference": "REF_A",
+      "sign": 1
+    },
+    {
+      "id": "MID_O",
+      "label": "跨中外侧",
+      "station_mm": 12000,
+      "reference": "REF_B",
+      "sign": -1
+    }
+  ],
+  "cases": [
+    {
+      "id": "CENTER",
+      "label": "内车道驻载",
+      "lane": "L1",
+      "target_kg": 18000,
+      "tolerance_kg": 100,
+      "axles": [
+        {
+          "id": "AX_F",
+          "target_mm": 10100,
+          "tolerance_mm": 80
+        },
+        {
+          "id": "AX_R",
+          "target_mm": 13800,
+          "tolerance_mm": 80
+        }
+      ]
+    },
+    {
+      "id": "EDGE",
+      "label": "外车道驻载",
+      "lane": "L2",
+      "target_kg": 18000,
+      "tolerance_kg": 100,
+      "axles": [
+        {
+          "id": "AX_F",
+          "target_mm": 10400,
+          "tolerance_mm": 80
+        },
+        {
+          "id": "AX_R",
+          "target_mm": 14100,
+          "tolerance_mm": 80
+        }
+      ]
+    }
+  ],
+  "holds": [
+    {
+      "id": "H1",
+      "case": "CENTER",
+      "before": [
+        0,
+        10
+      ],
+      "loaded": [
+        20,
+        30
+      ],
+      "after": [
+        40,
+        50
+      ]
+    },
+    {
+      "id": "H2",
+      "case": "CENTER",
+      "before": [
+        100,
+        110
+      ],
+      "loaded": [
+        120,
+        130
+      ],
+      "after": [
+        140,
+        150
+      ]
+    },
+    {
+      "id": "H3",
+      "case": "EDGE",
+      "before": [
+        200,
+        210
+      ],
+      "loaded": [
+        220,
+        230
+      ],
+      "after": [
+        240,
+        250
+      ]
+    }
+  ],
+  "minimum_pairs": 2,
+  "residual_limit_um": 8,
+  "repeat_limit_um": 12
+}
