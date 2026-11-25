@@ -55,6 +55,10 @@
           <label>状态<select id="inventory-state"><option value="all">全部</option><option value="active">参与归约</option><option value="excluded">已排除</option><option value="outside">窗外</option></select></label>
           <label>行号或通道<input id="inventory-match" maxlength="40" type="search"></label><button>查询</button>
         </form>
+        <div class="ticket-actions">
+          <button id="ticket-file" type="button" class="accent" disabled>按故障单整组排除所选行</button>
+          <button id="ticket-clear" type="button" class="quiet">清空选择</button>
+        </div>
         <div id="inventory-table" class="table-wrap"></div>
         <div class="pagination"><button id="inventory-prev" type="button">上一页</button><span id="inventory-page" aria-live="polite"></span><button id="inventory-next" type="button">下一页</button></div>
       </section>
@@ -66,6 +70,10 @@
         </form>
         <div id="diff" class="table-wrap"></div>
       </section>
+      <details class="journal" open><summary>故障单整组裁定</summary>
+        <p class="muted-note">故障单与手工裁定各自生效，整单撤销只解除该单对应的理由；任一行找不到则整次失败。</p>
+        <div id="ticket-journal" class="table-wrap"></div>
+      </details>
       <details class="journal"><summary>逐行裁定记录</summary><div id="journal" class="table-wrap"></div></details>
     </div>
   </main>
@@ -100,6 +108,18 @@
         <button id="decision-submit" disabled>确认裁定</button><p id="decision-error" class="form-error" role="alert"></p>
       </form>
     </div>
+  </dialog>
+  <dialog id="ticket-dialog">
+    <form id="ticket-form" class="modal-content">
+      <header class="section-head"><h2 id="ticket-dialog-title">故障单裁定</h2><button type="button" data-close="ticket-dialog" class="quiet">关闭</button></header>
+      <p id="ticket-revoke-hint" class="form-error" hidden></p>
+      <label id="ticket-id-row">故障单号<input id="ticket-id" required maxlength="40" pattern="[A-Za-z0-9_-]{1,40}" placeholder="例如：FT-20261125-01"></label>
+      <label>理由<input id="ticket-reason" required maxlength="160" placeholder="整组排除或撤销的复核理由"></label>
+      <input id="ticket-revision" type="hidden">
+      <ul id="ticket-members" class="ticket-members"></ul>
+      <button id="ticket-submit" class="accent">确认故障单裁定</button>
+      <p id="ticket-error" class="form-error" role="alert"></p>
+    </form>
   </dialog>
 </body>
 </html>

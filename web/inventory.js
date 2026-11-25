@@ -1,5 +1,5 @@
 import {api} from "./api.js";
-import {at, element, status, table} from "./dom.js";
+import {at, element, reasonChips, status, table} from "./dom.js";
 
 const phases = {before: "空载", loaded: "驻载", after: "撤载"};
 const states = {
@@ -17,26 +17,38 @@ function cells(row, reading) {
   return [row.id, row.axle, row.lane, row.station_mm, row.mass_kg, row.hold];
 }
 
-export function connectInventory(onReview, onError) {
+export function connectInventory(onReview, onError, onTicket) {
   const kindControl = at("inventory-kind");
   const stateControl = at("inventory-state");
   const search = at("inventory-match");
   let run, serial = 0, page = 1;
   let filter = {kind: "reading", state: "all", match: ""};
+  const selected = new Map();
 
   function render(currentRun, payload) {
     const reading = payload.kind === "reading";
-    const headers = [...(reading ? readingHead : positionHead), "CSV 行", "状态", "裁定"];
+    const headers = ["选择", ...(reading ? readingHead : positionHead), "CSV 行", "状态", "生效理由", "手工裁定"];
     table(at("inventory-table"), headers, payload.rows.map((row) => {
-      const action = row.state === "excluded" ? "restore" : "exclude";
-      const button = element("button", action === "exclude" ? "排除" : "恢复");
+      const manualActive = (row.reasons || []).some((item) => item.scope === "manual");
+      const action = manualActive ? "restore" : "exclude";
+      const button = element("button", action === "exclude" ? "手工排除" : "恢复本行");
       button.onclick = () => onReview(currentRun, payload.revision, payload.kind, row.id, action);
-      return [...cells(row, reading), row.line, status(...states[row.state]), button];
+      const checkbox = element("input");
+      checkbox.type = "checkbox";
+      const key = `${payload.kind}/${row.id}`;
+      checkbox.checked = selected.has(key);
+      checkbox.onchange = () => {
+        if (checkbox.checked) selected.set(key, {kind: payload.kind, row_id: row.id});
+        else selected.delete(key);
+      };
+      const reasons = row.state === "excluded" ? reasonChips(row.reasons) : "—";
+      return [checkbox, ...cells(row, reading), row.line, status(...states[row.state]), reasons, button];
     }), "没有符合条件的原始行");
     page = payload.page;
-    at("inventory-page").textContent = `第 ${page} / ${payload.pages} 页 · ${payload.total} 行`;
+    at("inventory-page").textContent = `第 ${page} / ${payload.pages} 页 · ${payload.total} 行 · 已选 ${selected.size} 行`;
     at("inventory-prev").disabled = page <= 1;
     at("inventory-next").disabled = page >= payload.pages;
+    at("ticket-file").disabled = selected.size === 0;
   }
 
   async function fetchPage(target) {
@@ -68,9 +80,18 @@ export function connectInventory(onReview, onError) {
   };
   at("inventory-prev").onclick = () => fetchPage(page - 1);
   at("inventory-next").onclick = () => fetchPage(page + 1);
+  at("ticket-clear").onclick = () => {
+    selected.clear();
+    fetchPage(page);
+  };
+  at("ticket-file").onclick = () => onTicket(run, [...selected.values()], () => {
+    selected.clear();
+    return fetchPage(page);
+  });
   return {show(currentRun) {
     const changed = run !== currentRun;
     run = currentRun;
+    if (changed) selected.clear();
     return fetchPage(changed ? 1 : page);
   }};
 }

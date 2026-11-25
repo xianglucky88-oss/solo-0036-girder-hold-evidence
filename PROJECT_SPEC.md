@@ -22,7 +22,7 @@
 
 ## 数据一致性
 
-输入摘要将计划与原始两个 CSV 文本绑定。重新导入相同内容复用同一草稿；源文件修改后得到独立草稿。草稿的排除与恢复每次只改变一行的纳入状态，记录理由并推进代次。客户端提交观察到的代次，服务端在事务中核对，以免后来的裁定覆盖先前修改。原始输入、同一代次的裁定和归约对应同一快照。
+输入摘要将计划与原始两个 CSV 文本绑定。重新导入相同内容复用同一草稿；源文件修改后得到独立草稿。逐行手工裁定与故障单整组裁定各自独立生效，撤销只解除当次对应的理由。每次裁定只推进一次代次并记录理由。手工裁定每次改变一行的纳入状态；故障单一次可含驻位和采样多个成员，按本草稿的原始行编号及类别认成员，任一行找不到则整次失败、不留部分成员。整单撤销只解除该故障单的理由，手工裁定和其他故障单继续生效；同一行可同时挂手工与多张故障单理由，全部解除后才重新纳入。客户端提交观察到的代次，服务端在事务中核对，以免后来的裁定覆盖先前修改；并发到达的过期整单不得留下部分成员。原始输入、同一代次的裁定和归约对应同一快照。原始行查询和证据面板对仍被排除的行列出全部生效理由（手工或具体故障单）。
 
 签出时冻结输入、裁定历史及归约结果，以规范 JSON 的 SHA-256 摘要标识整包。重复签出同代次复用同版，新的裁定不改变历史版本。历史追溯从签出包读取同版原始证据。比对要求相同计划和归约合同，逐轮次测点呈现数值差和源行证据变动。
 
@@ -34,8 +34,10 @@
 | `GET /api/holds`、`POST /api/holds` | 列出或以 `plan,positions,readings` 导入资料。 |
 | `GET /api/holds/{id}` | 取草稿、裁定记录及归约。 |
 | `GET /api/holds/{id}/trace?hold=H1&point=MID_I` | 取草稿同代次的驻位和配对证据。 |
-| `GET /api/holds/{id}/inventory` | 以 `kind,state,match,page` 查询原始记录。 |
-| `POST /api/holds/{id}/review` | 以 `revision,kind,row_id,action,reason` 排除或恢复。 |
+| `GET /api/holds/{id}/inventory` | 以 `kind,state,match,page` 查询原始记录，排除行附全部生效理由。 |
+| `POST /api/holds/{id}/review` | 以 `revision,kind,row_id,action,reason` 逐行手工排除或恢复。 |
+| `POST /api/holds/{id}/tickets/exclude` | 以 `revision,ticket,reason,rows` 按故障单整组排除，`rows` 为 `{kind,row_id}` 列表，可混含驻位和采样。 |
+| `POST /api/holds/{id}/tickets/revoke` | 以 `revision,ticket,reason` 整单撤销，只解除该单对应的理由。 |
 | `POST /api/holds/{id}/release` | 以 `revision` 签出当前可用结果。 |
 | `GET /api/editions`、`GET /api/editions/{id}` | 列出签出版或读取签出包。 |
 | `GET /api/editions/{id}/trace?hold=H1&point=MID_I` | 查签出版的冻结证据。 |

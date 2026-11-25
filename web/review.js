@@ -35,9 +35,15 @@ export function renderReview(draft, onTrace) {
 }
 
 export function renderJournal(draft, onRestore) {
-  const latest = new Map(draft.journal.map((item) => [`${item.kind}/${item.row_id}`, item.revision]));
-  table(at("journal"), ["代次", "类型", "行号", "裁定", "理由", "操作"], draft.journal.map((item) => {
-    const canRestore = item.action === "exclude" && item.revision === latest.get(`${item.kind}/${item.row_id}`);
+  const manual = draft.journal.filter((item) => (item.scope ?? "manual") === "manual");
+  const latest = new Map(manual.map((item) => [`${item.kind}/${item.row_id}`, item.revision]));
+  // 仅当最近一次手工裁定仍是排除时提供手工恢复；故障单理由在故障单面板整单撤销。
+  const manualState = new Map();
+  for (const item of manual) manualState.set(`${item.kind}/${item.row_id}`, item.action);
+  table(at("journal"), ["代次", "类型", "行号", "裁定", "理由", "操作"], manual.map((item) => {
+    const identity = `${item.kind}/${item.row_id}`;
+    const canRestore = item.action === "exclude" && item.revision === latest.get(identity)
+      && manualState.get(identity) === "exclude";
     const action = canRestore ? element("button", "恢复此行") : "—";
     if (canRestore) action.onclick = () => onRestore(item.kind, item.row_id);
     return [item.revision, item.kind === "reading" ? "采样" : "驻位", item.row_id, item.action === "exclude" ? "排除" : "恢复", item.reason, action];

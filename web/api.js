@@ -21,6 +21,7 @@ export const api = {
   inventory: (run, query) => request(`/api/holds/${run}/inventory?${new URLSearchParams(query)}`),
   trace: (run, hold, point) => request(`/api/holds/${run}/trace?${new URLSearchParams({hold, point})}`),
   decide: (run, revision, kind, row_id, action, reason) => request(`/api/holds/${run}/review`, {revision, kind, row_id, action, reason}),
+  ticket: (run, endpoint, payload) => request(`/api/holds/${run}/tickets/${endpoint}`, payload),
   release: (run, revision) => request(`/api/holds/${run}/release`, {revision}),
   editions: () => request("/api/editions"),
   edition: (id) => request(`/api/editions/${id}`),

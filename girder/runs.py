@@ -39,8 +39,8 @@ def list_runs(store):
 def snapshot(store, run):
     with store.transaction() as db:
         row = require_run(db, run)
-        events = db.execute("SELECT revision, kind, row_id, action, reason FROM girder_votes "
-                            "WHERE run = ? ORDER BY revision", (run,))
+        events = db.execute("SELECT revision, seq, scope, ticket, kind, row_id, action, reason FROM girder_journal "
+                            "WHERE run = ? ORDER BY revision, seq", (run,))
         journal = [dict(event) for event in events]
     row["source"] = json.loads(row["source"])
     return row, journal

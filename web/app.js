@@ -5,6 +5,7 @@ import {connectIntake} from "./intake.js";
 import {connectInventory} from "./inventory.js";
 import {renderProfiles} from "./profiles.js";
 import {renderJournal, renderReview} from "./review.js";
+import {connectTickets} from "./tickets.js";
 import {connectTrace} from "./trace.js";
 
 let currentDraft, requestOrder = 0;
@@ -21,7 +22,13 @@ const trace = connectTrace(async (run, message) => {
   if (currentDraft?.id === run) await refresh(run);
   notice(message);
 }, onError);
-const inventory = connectInventory(trace.reviewRow, onError);
+const tickets = connectTickets(async (run, message) => {
+  await refresh(run);
+  notice(message);
+}, onError);
+const inventory = connectInventory(trace.reviewRow, onError, (run, members, done) => {
+  tickets.openFile(run, members, done);
+});
 const editions = connectEditions(notice, onError);
 
 async function showView(view) {
@@ -52,6 +59,7 @@ async function refresh(requested) {
   renderReview(draft, (hold, point, label) => trace.show(draft.id, hold, point, label));
   renderProfiles(draft);
   renderJournal(draft, (kind, id) => trace.reviewRow(draft.id, draft.revision, kind, id, "restore"));
+  tickets.renderJournal(draft);
   await showView(activeView);
 }
 

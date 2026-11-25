@@ -40,3 +40,14 @@ export function fillOptions(select, options, empty) {
   select.replaceChildren(...(empty === undefined ? nodes : [new Option(empty, ""), ...nodes]));
   if (Array.from(select.options).some((option) => option.value === previous)) select.value = previous;
 }
+
+export function reasonChips(reasons) {
+  const wrap = element("div", undefined, "reason-list");
+  for (const item of reasons || []) {
+    const source = item.scope === "ticket" ? `故障单 ${item.ticket ?? ""}` : "手工裁定";
+    const chip = element("span", `${source}：${item.reason}`, `reason-chip ${item.scope}`);
+    chip.title = `第 ${item.revision} 代生效`;
+    wrap.append(chip);
+  }
+  return wrap;
+}

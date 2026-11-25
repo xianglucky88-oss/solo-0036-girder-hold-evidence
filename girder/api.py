@@ -8,7 +8,7 @@ from .editions import list_editions, read_edition, release
 from .errors import Rejected
 from .intake import parse_survey
 from .inventory import inventory
-from .review import adjudicate
+from .review import adjudicate, effective_reasons, ticket_exclude, ticket_revoke
 from .runs import list_runs, snapshot, submit
 from .trace import explain
 from .validation import key
@@ -40,8 +40,9 @@ class API:
                 result = inventory(parse_survey(row["source"]), journal, params)
                 return result | {"revision": row["revision"]}, None
             hold, point = trace_coordinates(params)
-            row, _, survey, report = materialize(self.store, run)
-            return explain(survey, report, hold, point) | {"revision": row["revision"]}, None
+            row, journal, survey, report = materialize(self.store, run)
+            return explain(survey, report, hold, point, effective_reasons(journal)) \
+                | {"revision": row["revision"]}, None
         match = re.fullmatch(r"/api/editions/([1-9][0-9]{0,14})(/download|/trace)?", path)
         if match:
             edition = int(match[1])
@@ -62,5 +63,9 @@ class API:
         match = re.fullmatch(r"/api/holds/([1-9][0-9]{0,14})/(review|release)", path)
         if match:
             action = adjudicate if match[2] == "review" else release
+            return action(self.store, int(match[1]), data)
+        match = re.fullmatch(r"/api/holds/([1-9][0-9]{0,14})/tickets/(exclude|revoke)", path)
+        if match:
+            action = ticket_exclude if match[2] == "exclude" else ticket_revoke
             return action(self.store, int(match[1]), data)
         raise Rejected("找不到数据入口", 404)

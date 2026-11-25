@@ -107,6 +107,136 @@ def exercise(url):
     edition, headers = request(url, f"/api/editions/{first['id']}/download")
     check(edition["digest"] == fingerprint(edition["document"]) == first["digest"] and edition["document"]["journal"] == []
           and headers["Content-Disposition"].startswith("attachment"), "download 历史版本独立下载及摘要")
+    exercise_tickets(url, sample, get, post)
+
+
+def reason_index(draft):
+    return {kind: {row_id: items for row_id, items in rows.items()}
+            for kind, rows in draft["active_reasons"].items()}
+
+
+def exercise_tickets(url, sample, get, post):
+    """整组排除、整单撤销、理由叠加与并发原子性。"""
+    from threading import Barrier, Thread
+    # 使用独立标签生成一份独立草稿，避免与主流程的裁定历史互相干扰。
+    own = copy.deepcopy(sample)
+    own["plan"]["label"] = f"{sample['plan']['label']} 故障单演练"
+    created = post("/api/holds", own)
+    check(created["created"], "ticket 独立草稿导入")
+    run = f"/api/holds/{created['id']}"
+
+    def exclude(ticket, revision, rows, reason, expected=200):
+        return post(f"{run}/tickets/exclude",
+                    dict(revision=revision, ticket=ticket, reason=reason, rows=rows), expected)
+
+    def revoke(ticket, revision, reason, expected=200):
+        return post(f"{run}/tickets/revoke",
+                    dict(revision=revision, ticket=ticket, reason=reason), expected)
+
+    ref = {"kind": "reading", "row_id": "REF_A-21"}
+    ref24 = {"kind": "reading", "row_id": "REF_A-24"}
+    # 甲单：两条共享参考 + 驻位 P11；乙单：同两条参考 + 驻位 P12。
+    exclude("FT-A", 0, [ref, ref24, {"kind": "position", "row_id": "P11"}], "甲单理由")
+    exclude("FT-B", 1, [ref, ref24, {"kind": "position", "row_id": "P12"}], "乙单理由")
+    draft = get(run)
+    check(draft["revision"] == 2, "ticket 整组排除各推进一次代次")
+    reasons = reason_index(draft)
+    check({item["ticket"] for item in reasons["reading"]["REF_A-21"]} == {"FT-A", "FT-B"}
+          and {item["ticket"] for item in reasons["position"]["P11"]} == {"FT-A"}
+          and {item["ticket"] for item in reasons["position"]["P12"]} == {"FT-B"}, "ticket 共享参考叠加多单理由")
+    excluded = get(f"{run}/inventory?kind=reading&state=excluded")
+    ref_row = next(row for row in excluded["rows"] if row["id"] == "REF_A-21")
+    check([item["ticket"] for item in ref_row["reasons"]] == ["FT-A", "FT-B"], "inventory 每行可核对生效故障单理由")
+    # 手工也排除同一参考：手工与故障单各自生效。
+    post(f"{run}/review", dict(revision=2, kind="reading", row_id="REF_A-21",
+                               action="exclude", reason="手工参考裁定"))
+    # 撤甲：参考仍被乙单和手工排除；P11 恢复、P12 继续排除。
+    revoke("FT-A", 3, "撤销甲单")
+    draft = get(run)
+    reasons = reason_index(draft)
+    scopes = {(item["scope"], item.get("ticket")) for item in reasons["reading"]["REF_A-21"]}
+    check(scopes == {("ticket", "FT-B"), ("manual", None)}
+          and "P11" not in reasons["position"] and "P12" in reasons["position"], "ticket 撤甲后参考与乙单驻位仍排除")
+    # 撤乙只恢复驻位；参考待手工恢复后才重新配对。
+    revoke("FT-B", 4, "撤销乙单")
+    draft = get(run)
+    reasons = reason_index(draft)
+    check("REF_A-21" in reasons["reading"] and "REF_A-24" not in reasons["reading"]
+          and not reasons["position"], "ticket 撤乙只恢复驻位与乙单参考，手工参考仍排除")
+    blocked = {(row["hold"], row["point"]) for row in draft["report"]["responses"] if row["state"] == "coverage"}
+    check(not blocked, "ticket 仅剩一条手工参考排除时配对仍达标")
+    # 手工补上 REF_A-24 后才缺覆盖，恢复两条手工参考后重新配对。
+    post(f"{run}/review", dict(revision=5, kind="reading", row_id="REF_A-24",
+                               action="exclude", reason="手工补排第二参考"))
+    blocked = {(row["hold"], row["point"]) for row in get(run)["report"]["responses"] if row["state"] == "coverage"}
+    check(blocked == {("H1", "MID_I"), ("H1", "Q1")}, "ticket 两条手工参考排除后配对缺口出现")
+    post(f"{run}/review", dict(revision=6, kind="reading", row_id="REF_A-21",
+                               action="restore", reason="手工恢复参考"))
+    post(f"{run}/review", dict(revision=7, kind="reading", row_id="REF_A-24",
+                               action="restore", reason="手工恢复参考"))
+    check(get(run)["report"]["ready"], "ticket 手工恢复后重新配对并可签出")
+    # 任一成员找不到则整次失败，代次不推进、不留部分成员。
+    before = get(run)["revision"]
+    post(f"{run}/tickets/exclude",
+         dict(revision=before, ticket="FT-BAD", reason="x",
+              rows=[{"kind": "position", "row_id": "P11"}, {"kind": "reading", "row_id": "MISSING-9"}]), 404)
+    draft = get(run)
+    check(draft["revision"] == before and all(item.get("ticket") != "FT-BAD" for item in draft["journal"]),
+          "ticket 成员缺失整次失败不留部分成员")
+    # 过期代次与状态冲突。
+    post(f"{run}/tickets/exclude",
+         dict(revision=before - 1, ticket="FT-OLD", reason="x", rows=[{"kind": "position", "row_id": "P11"}]), 409)
+    exclude("FT-LIVE", before, [{"kind": "position", "row_id": "P11"}], "生效单")
+    post(f"{run}/tickets/exclude",
+         dict(revision=before + 1, ticket="FT-LIVE", reason="x", rows=[{"kind": "position", "row_id": "P12"}]), 409)
+    post(f"{run}/tickets/revoke", dict(revision=before + 1, ticket="FT-GONE", reason="x"), 404)
+    # 撤销后可重新立单，重新推进代次。
+    revoke("FT-LIVE", before + 1, "先撤销")
+    check("P11" not in reason_index(get(run))["position"], "ticket 撤销后驻位恢复")
+    out = exclude("FT-LIVE", before + 2, [{"kind": "position", "row_id": "P12"}], "重新立单")
+    check(out["revision"] == before + 3, "ticket 撤销后允许重新整组排除")
+    revoke("FT-LIVE", before + 3, "再撤销")
+    # 签出冻结含故障单的裁定流水，旧签件仍可回查生效理由。
+    ticket_rev = get(run)["revision"]
+    exclude("FT-FREEZE", ticket_rev, [ref, ref24], "签出前故障单")
+    frozen_rev = ticket_rev + 1
+    post(f"{run}/release", {"revision": frozen_rev}, 409)
+    # 恢复后签出，确认签出版冻结在恢复代次且保留完整故障单历史。
+    revoke("FT-FREEZE", frozen_rev, "恢复以便签出")
+    ready_rev = frozen_rev + 1
+    edition = post(f"{run}/release", {"revision": ready_rev})
+    archived = get(f"/api/editions/{edition['id']}/trace?hold=H1&point=MID_I")
+    check("exclusion_reasons" in archived, "archive 签出证据可核对有效理由")
+    downloaded = get(f"/api/editions/{edition['id']}")["document"]
+    check(any(item.get("scope") == "ticket" for item in downloaded["journal"])
+          and downloaded["revision"] == ready_rev, "archive 签出包冻结故障单裁定历史")
+    # 并发到达的同代次整单：只允许一个生效，另一个 409，无部分成员。
+    base = get(run)["revision"]
+    barrier = Barrier(2)
+    results = []
+
+    def worker(ticket):
+        barrier.wait()
+        try:
+            results.append(post(f"{run}/tickets/exclude",
+                                dict(revision=base, ticket=ticket, reason="并发",
+                                     rows=[{"kind": "position", "row_id": "P11"},
+                                           {"kind": "position", "row_id": "P12"}]), 200))
+        except RuntimeError as exc:
+            results.append(exc)
+
+    threads = [Thread(target=worker, args=(name,)) for name in ("FT-C1", "FT-C2")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    ok = [item for item in results if not isinstance(item, Exception)]
+    failed = [item for item in results if isinstance(item, Exception)]
+    draft = get(run)
+    live = {item.get("ticket") for kind in draft["active_reasons"].values() for row in kind.values()
+            for item in row if item.get("scope") == "ticket"}
+    check(len(ok) == 1 and len(failed) == 1 and draft["revision"] == base + 1
+          and live in ({"FT-C1"}, {"FT-C2"}) and len(live) == 1, "ticket 并发整单原子生效、过期者不留部分成员")
 
 
 def main():

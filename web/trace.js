@@ -52,9 +52,9 @@ export function connectTrace(afterChange, onError) {
         const trace = await api.trace(run, hold, point);
         if (token !== loadToken || !dialog.open) return;
         at("trace-summary").textContent = `草稿第 ${trace.revision} 代 · 驻载 ${display(trace.response.loaded_um)} μm · 残余 ${display(trace.response.residual_um)} μm`;
-        renderEvidence(at("trace-body"), trace, (kind, id) => {
-          const button = element("button", "排除");
-          button.onclick = () => select(run, trace.revision, kind, id, "exclude");
+        renderEvidence(at("trace-body"), trace, (kind, id, action) => {
+          const button = element("button", action === "exclude" ? "手工排除" : "恢复本行");
+          button.onclick = () => select(run, trace.revision, kind, id, action);
           return button;
         });
       } catch (error) {

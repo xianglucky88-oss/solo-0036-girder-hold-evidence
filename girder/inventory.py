@@ -1,7 +1,7 @@
 from dataclasses import asdict
 
 from .errors import Rejected
-from .review import exclusions
+from .review import effective_reasons, exclusions
 from .windows import WindowIndex
 
 PAGE_SIZE = 50
@@ -25,7 +25,7 @@ def read_filter(params):
     return kind, state, match.casefold(), int(page)
 
 
-def identify(row, excluded, windows):
+def identify(row, excluded, windows, reasons):
     assignment = windows.find(row.tick) if windows else (row.hold, None)
     if row.id in excluded:
         state = "excluded"
@@ -34,12 +34,16 @@ def identify(row, excluded, windows):
     else:
         state = "active"
     hold, phase = assignment or (None, None)
-    return asdict(row) | {"state": state, "hold": hold, "phase": phase}
+    entry = asdict(row) | {"state": state, "hold": hold, "phase": phase}
+    if state == "excluded":
+        entry["reasons"] = reasons[row.id]
+    return entry
 
 
 def inventory(survey, journal, params):
     kind, state, match, requested_page = read_filter(params)
     excluded = exclusions(journal)[kind]
+    reasons = effective_reasons(journal)[kind]
     readings = kind == "reading"
     rows = survey.readings if readings else survey.positions
     windows = WindowIndex(survey.plan.holds) if readings else None
@@ -48,7 +52,7 @@ def inventory(survey, journal, params):
         subject = row.channel if readings else row.axle
         if match and match not in row.id.casefold() and match not in subject.casefold():
             continue
-        entry = identify(row, excluded, windows)
+        entry = identify(row, excluded, windows, reasons)
         if state == "all" or entry["state"] == state:
             matches.append(entry)
     pages = max(1, (len(matches) + PAGE_SIZE - 1) // PAGE_SIZE)

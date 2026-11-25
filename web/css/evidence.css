@@ -69,3 +69,61 @@ dialog::backdrop {
   color: var(--muted);
   font-size: .9rem;
 }
+
+.reason-list {
+  display: grid;
+  gap: .28rem;
+}
+
+.reason-chip {
+  display: inline-block;
+  padding: .16rem .45rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  border: 1px solid var(--line);
+  background: #f6f2fb;
+  color: var(--muted);
+}
+
+.reason-chip.ticket {
+  background: var(--amber-soft);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.reason-chip.manual {
+  background: #eef0fb;
+  border-color: #8a93c9;
+  color: #46508f;
+}
+
+.ticket-actions {
+  display: flex;
+  gap: .55rem;
+  margin: .8rem 0;
+  flex-wrap: wrap;
+}
+
+.ticket-members {
+  margin: .2rem 0;
+  padding-left: 1.2rem;
+  max-height: 32vh;
+  overflow: auto;
+  font-size: .88rem;
+}
+
+.muted-note {
+  color: var(--muted);
+  font-size: .84rem;
+  margin: .35rem 0;
+}
+
+#ticket-form {
+  display: grid;
+  gap: .6rem;
+  min-width: min(92vw, 30rem);
+}
+
+#ticket-form input {
+  width: 100%;
+}
