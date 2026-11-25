@@ -27,9 +27,14 @@ export function connectEditions(onNotice, onError) {
     at("diff").replaceChildren();
     try {
       const result = await api.compare(at("before").value, at("after").value);
-      table(at("diff"), ["轮次", "测点", "驻载变化 / μm", "残余变化 / μm", "证据变化"], result.rows.map((row) => [
+      const rows = result.rows.map((row) => [
         row.hold, row.point, row.change.loaded_um, row.change.residual_um, row.evidence_changed ? "已变化" : "相同",
-      ]));
+      ]);
+      for (const row of result.graded ?? []) {
+        rows.push([`${row.level}（分级）`, row.point, row.change.difference_um, row.change.residual_um,
+                   row.adopted === row.adopted_before ? (row.adopted ? "已采用" : "缺失") : row.adopted ? "转为采用" : "转为缺失"]);
+      }
+      table(at("diff"), ["轮次", "测点", "驻载/回程差变化 / μm", "残余变化 / μm", "证据 / 采用变化"], rows);
     } catch (error) {
       onError(error);
     } finally {

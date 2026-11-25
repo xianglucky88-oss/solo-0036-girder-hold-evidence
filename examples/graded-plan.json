@@ -1,0 +1,80 @@
+{
+  "id": "LUTING_G",
+  "label": "鹭汀试验跨 · 连续分级",
+  "span_mm": 24000,
+  "references": [
+    "REF_A",
+    "REF_B"
+  ],
+  "points": [
+    {
+      "id": "Q1",
+      "label": "四分点",
+      "station_mm": 6000,
+      "reference": "REF_A",
+      "sign": 1
+    },
+    {
+      "id": "MID_I",
+      "label": "跨中内侧",
+      "station_mm": 12000,
+      "reference": "REF_A",
+      "sign": 1
+    },
+    {
+      "id": "MID_O",
+      "label": "跨中外侧",
+      "station_mm": 12000,
+      "reference": "REF_B",
+      "sign": -1
+    }
+  ],
+  "cases": [],
+  "holds": [],
+  "graded": {
+    "id": "G1",
+    "label": "连续分级静载",
+    "first_empty": [0, 10],
+    "final_empty": [700, 710],
+    "levels": [
+      {
+        "id": "LOW",
+        "label": "低级",
+        "lane": "L1",
+        "target_kg": 20000,
+        "tolerance_kg": 500,
+        "contrast_tolerance_kg": 200,
+        "axles": [
+          {"id": "AX_F", "target_mm": 10100, "tolerance_mm": 80},
+          {"id": "AX_R", "target_mm": 13800, "tolerance_mm": 80}
+        ]
+      },
+      {
+        "id": "HIGH",
+        "label": "高级",
+        "lane": "L1",
+        "target_kg": 30000,
+        "tolerance_kg": 500,
+        "contrast_tolerance_kg": 200,
+        "axles": [
+          {"id": "AX_F", "target_mm": 10100, "tolerance_mm": 80},
+          {"id": "AX_R", "target_mm": 13800, "tolerance_mm": 80}
+        ]
+      }
+    ],
+    "steps": [
+      {"id": "L_UP", "level": "LOW", "direction": "up", "window": [20, 30]},
+      {"id": "H_UP", "level": "HIGH", "direction": "up", "window": [40, 50]},
+      {"id": "PEAK", "level": "HIGH", "direction": "peak", "window": [60, 70]},
+      {"id": "H_BACK", "level": "HIGH", "direction": "back", "window": [80, 90]},
+      {"id": "L_BACK", "level": "LOW", "direction": "back", "window": [100, 110]}
+    ],
+    "contrasts": [
+      {"level": "LOW", "forward": "L_UP", "back": "L_BACK"},
+      {"level": "HIGH", "forward": "H_UP", "back": "H_BACK"}
+    ]
+  },
+  "minimum_pairs": 2,
+  "residual_limit_um": 8,
+  "repeat_limit_um": 12
+}

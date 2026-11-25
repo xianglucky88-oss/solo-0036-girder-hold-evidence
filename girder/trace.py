@@ -1,6 +1,7 @@
 from dataclasses import asdict
 
 from .errors import Rejected
+from .graded import graded_evidence
 
 
 def evidence(survey, placement, match):
@@ -15,7 +16,14 @@ def evidence(survey, placement, match):
     return dict(response=match, placement=placement, positions=positions, readings=readings)
 
 
+def is_graded(report, hold):
+    graded = report.get("graded")
+    return bool(graded) and graded["id"] == hold
+
+
 def explain(survey, report, hold, point):
+    if is_graded(report, hold):
+        return graded_evidence(survey, report, hold, point)
     match = next((row for row in report["responses"] if row["hold"] == hold and row["point"] == point), None)
     if match is None:
         raise Rejected("找不到该轮次和测点组合", 404)

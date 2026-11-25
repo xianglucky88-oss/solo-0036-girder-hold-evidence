@@ -1,10 +1,13 @@
 from dataclasses import asdict
 
+from .graded import DIRECTION_NAMES
 from .errors import Rejected
 from .review import exclusions
-from .windows import WindowIndex
+from .windows import FINAL_EMPTY, FIRST_EMPTY, PHASES, WindowIndex
 
 PAGE_SIZE = 50
+EMPTY_NAMES = {FIRST_EMPTY: "首空载", FINAL_EMPTY: "末段撤净"}
+PHASE_NAMES = dict(zip(PHASES, ("空载", "驻载", "撤载")))
 
 
 def read_filter(params):
@@ -25,16 +28,30 @@ def read_filter(params):
     return kind, state, match.casefold(), int(page)
 
 
-def identify(row, excluded, windows):
-    assignment = windows.find(row.tick) if windows else (row.hold, None)
+def graded_phase_names(plan):
+    names = dict(EMPTY_NAMES)
+    if plan.graded is not None:
+        for step in plan.graded.steps:
+            names[step.id] = f"{step.level} · {DIRECTION_NAMES[step.direction]}"
+    return names
+
+
+def identify(row, excluded, windows, plan=None):
+    if windows is None:
+        return asdict(row) | {"state": "excluded" if row.id in excluded else "active", "scope": "hold",
+                              "owner": row.hold, "phase": None, "phase_label": None}
+    assignment = windows.find(row.tick)
     if row.id in excluded:
         state = "excluded"
     elif assignment is None:
         state = "outside"
     else:
         state = "active"
-    hold, phase = assignment or (None, None)
-    return asdict(row) | {"state": state, "hold": hold, "phase": phase}
+    if assignment is None:
+        return asdict(row) | {"state": state, "scope": None, "owner": None, "phase": None, "phase_label": None}
+    scope, owner, phase = assignment
+    label = PHASE_NAMES.get(phase) if scope == "hold" else graded_phase_names(plan).get(phase, phase)
+    return asdict(row) | {"state": state, "scope": scope, "owner": owner, "phase": phase, "phase_label": label}
 
 
 def inventory(survey, journal, params):
@@ -42,13 +59,19 @@ def inventory(survey, journal, params):
     excluded = exclusions(journal)[kind]
     readings = kind == "reading"
     rows = survey.readings if readings else survey.positions
-    windows = WindowIndex(survey.plan.holds) if readings else None
+    windows = WindowIndex.for_plan(survey.plan) if readings else None
     matches = []
     for row in rows.values():
         subject = row.channel if readings else row.axle
-        if match and match not in row.id.casefold() and match not in subject.casefold():
-            continue
-        entry = identify(row, excluded, windows)
+        entry = identify(row, excluded, windows, survey.plan)
+        if match:
+            haystack = {row.id.casefold(), subject.casefold()}
+            if entry["phase"]:
+                haystack.add(str(entry["phase"]).casefold())
+            if entry["phase_label"]:
+                haystack.add(entry["phase_label"].casefold())
+            if not any(match in item for item in haystack):
+                continue
         if state == "all" or entry["state"] == state:
             matches.append(entry)
     pages = max(1, (len(matches) + PAGE_SIZE - 1) // PAGE_SIZE)

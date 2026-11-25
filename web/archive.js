@@ -21,7 +21,9 @@ export function connectArchive(onError) {
     try {
       const trace = await api.archivedTrace(edition, response.hold, response.point);
       if (!current(order)) return;
-      summary.textContent = `驻载 ${display(trace.response.loaded_um)} μm · 残余 ${display(trace.response.residual_um)} μm`;
+      summary.textContent = trace.graded !== undefined
+        ? `分级 ${trace.graded} · 整次残余 ${display(trace.response.residual_um)} μm`
+        : `驻载 ${display(trace.response.loaded_um)} μm · 残余 ${display(trace.response.residual_um)} μm`;
       renderEvidence(body, trace);
     } catch (error) {
       if (current(order)) summary.textContent = error.message;
@@ -40,7 +42,13 @@ export function connectArchive(onError) {
       const {digest, document} = await api.edition(edition);
       if (!current(order)) return;
       at("archive-meta").textContent = `草稿代次 ${document.revision} · 摘要 ${digest.slice(0, 12)}…`;
-      const responses = document.report.responses;
+      const responses = [...document.report.responses];
+      if (document.report.graded) {
+        for (const row of document.report.graded.workorder) {
+          responses.push({hold: document.report.graded.id, point: row.point,
+                          loaded_um: row.difference_um, residual_um: row.residual_um});
+        }
+      }
       fillOptions(select, responses.map((row, index) => [index, `${row.hold} · ${row.point}`]));
       select.onchange = () => loadTrace(edition, responses[Number(select.value)]);
       picker.hidden = false;

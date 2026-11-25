@@ -62,6 +62,12 @@ class Handler(BaseHTTPRequestHandler):
                            positions=(directory / "positions.csv").read_text(),
                            readings=(directory / "readings.csv").read_text()))
             return
+        if path == "/example-graded":
+            directory = ROOT / "examples"
+            self.json(dict(plan=parse_json((directory / "graded-plan.json").read_bytes()),
+                           positions=(directory / "graded-positions.csv").read_text(),
+                           readings=(directory / "graded-readings.csv").read_text()))
+            return
         match = ASSETS.fullmatch(path)
         if match and (ROOT / path[1:]).is_file():
             self.send_bytes((ROOT / path[1:]).read_bytes(), TYPES[match[1]])

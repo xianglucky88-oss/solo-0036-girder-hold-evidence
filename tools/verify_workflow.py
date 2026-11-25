@@ -109,9 +109,97 @@ def exercise(url):
           and headers["Content-Disposition"].startswith("attachment"), "download 历史版本独立下载及摘要")
 
 
+def exercise_graded(url):
+    get = lambda path: request(url, path)[0]
+    post = lambda path, body, expected=200: request(url, path, body, expected)[0]
+
+    sample = get("/example-graded")
+    created = post("/api/holds", sample)
+    run = f"/api/holds/{created['id']}"
+    draft = get(run)
+    report = draft["report"]
+    graded = report["graded"]
+    check(graded is not None and graded["id"] == "G1" and len(graded["steps"]) == 5,
+          "graded 连续分级过程登记")
+    check([point["first_empty_um"] for point in graded["points"]] == [2, 2, 2]
+          and [point["final_empty_um"] for point in graded["points"]] == [3, 3, 3]
+          and [point["residual_um"] for point in graded["points"]] == [1, 1, 1],
+          "graded 共用零点与整次残余")
+    low = next(row for row in graded["contrasts"] if row["level"] == "LOW")
+    high = next(row for row in graded["contrasts"] if row["level"] == "HIGH")
+    check(low["forward"] == "L_UP" and low["back"] == "L_BACK"
+          and low["contrast_tolerance_kg"] == 200 and low["mass_delta_kg"] == 200 and low["state"] == "valid",
+          "graded 同级指定去回台阶与对照容差")
+    low_row = next(row for row in low["points"] if row["point"] == "MID_I")
+    check(low_row["forward_displacement_um"] == 16 and low_row["back_displacement_um"] == 19
+          and low_row["difference_um"] == 3 and low_row["residual_um"] == 1,
+          "graded 有符号回程差与整次残余")
+    check(all(row["difference_um"] == 4 for row in high["points"]) and report["ready"],
+          "graded 高级回程差")
+    check(report["step_placement"]["L_UP"]["total_kg"] == 19900
+          and report["step_placement"]["L_BACK"]["total_kg"] == 20100,
+          "graded 去回实测总质量")
+
+    trace = get(f"{run}/trace?hold=G1&point=MID_I")
+    check(trace["graded"] == "G1" and len(trace["first_empty"]["phases"]["pairs"]) == 2
+          and len(trace["steps"]) == 5 and len(trace["contrasts"]) == 2 and len(trace["positions"]) == 10,
+          "graded trace 驻位与公共空载配对")
+    check(all(row["adopted"] for row in trace["contrasts"]), "graded trace 采用的去回证据")
+
+    post(f"{run}/review", dict(revision=0, kind="reading", row_id="REF_A-1", action="exclude",
+                               reason="分级公共空载参考行演练排除"))
+    broken = get(run)["report"]
+    check(not broken["ready"]
+          and {(item["point"]) for item in broken["graded"]["missing"] if item["kind"] == "empty_coverage"}
+          == {"Q1", "MID_I"},
+          "graded 首空载公共窗缺配对阻止签出")
+    post(f"{run}/release", {"revision": 1}, 409)
+    restored = post(f"{run}/review", dict(revision=1, kind="reading", row_id="REF_A-1", action="restore",
+                                          reason="恢复公共空载参考行"))
+    check(restored["revision"] == 2 and get(run)["report"]["ready"], "graded 恢复后同代次重算")
+
+    edition = post(f"{run}/release", {"revision": 2})
+    archived = get(f"/api/editions/{edition['id']}/trace?hold=G1&point=MID_I")
+    check(archived["graded"] == "G1" and archived["response"]["residual_um"] == 1
+          and {row["id"] for row in archived["readings"]}.issuperset({"REF_A-1", "REF_A-4"})
+          and archived["first_empty"]["phases"]["pair_count"] == 2, "graded 签件回溯逐轴驻位与公共空载")
+
+    heavy = copy.deepcopy(sample)
+    heavy["positions"] = heavy["positions"].replace("L_BACKR,L_BACK,AX_R,L1,13800,10050",
+                                                    "L_BACKR,L_BACK,AX_R,L1,13800,10250")
+    heavy_run = f"/api/holds/{post('/api/holds', heavy)['id']}"
+    heavy_report = get(heavy_run)["report"]
+    heavy_low = next(row for row in heavy_report["graded"]["contrasts"] if row["level"] == "LOW")
+    heavy_high = next(row for row in heavy_report["graded"]["contrasts"] if row["level"] == "HIGH")
+    check(heavy_low["state"] == "mass" and heavy_low["mass_delta_kg"] == 400
+          and all(row["difference_um"] is None for row in heavy_low["points"])
+          and heavy_high["state"] == "valid" and heavy_high["mass_delta_kg"] == 0,
+          "graded 单台阶合格但对照超差只缺该级")
+    post(f"{heavy_run}/release", {"revision": 0}, 409)
+    heavy_trace = get(f"{heavy_run}/trace?hold=G1&point=MID_I")
+    check(any(not row["adopted"] for row in heavy_trace["contrasts"] if row["level"] == "LOW")
+          and any(row["adopted"] for row in heavy_trace["contrasts"] if row["level"] == "HIGH"),
+          "graded 缺失对照留证且已成立高级可查")
+
+    substituted = copy.deepcopy(sample)
+    substituted["plan"]["graded"]["contrasts"][0]["forward"] = "PEAK"
+    post("/api/holds", substituted, 400)
+    adjacent = copy.deepcopy(sample)
+    adjacent["plan"]["graded"]["contrasts"][0]["back"] = "H_BACK"
+    post("/api/holds", adjacent, 400)
+    check(True, "graded 峰值与邻级不得顶替去回台阶")
+
+    ownership = get(f"{heavy_run}/inventory?kind=reading&match=L_BACK")
+    check(ownership["rows"] and all(row["scope"] == "graded" and row["owner"] == "G1"
+                                    and row["phase_label"].startswith("LOW") for row in ownership["rows"]),
+          "graded inventory 原行归属分级台阶")
+
+
 def main():
     with temporary_server() as url:
         exercise(url)
+    with temporary_server() as url:
+        exercise_graded(url)
 
 
 if __name__ == "__main__":

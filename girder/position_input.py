@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from .csv_input import integer, rows
 from .errors import Rejected
+from .graded import step_axes
 from .validation import key
 
 
@@ -19,6 +20,8 @@ class Position:
 def parse_positions(source, plan):
     case_axles = {case.id: {axle.id for axle in case.axles} for case in plan.cases}
     holds = {hold.id: case_axles[hold.case] for hold in plan.holds}
+    if plan.graded is not None:
+        holds |= step_axes(plan.graded)
     result = {}
     for line, (identity, hold, axle, lane, station, mass) in rows(source, "id hold axle lane station_mm mass_kg", "驻位表", 1280):
         key(identity, "驻位行号")

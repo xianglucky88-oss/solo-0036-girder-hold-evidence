@@ -6,7 +6,7 @@ def make_responses(plan, placement, pairs, gaps):
     rows = []
     for hold in plan.holds:
         for point in plan.points:
-            phases, values = summarize_phases(pairs, gaps, hold.id, point.id, plan.minimum_pairs)
+            phases, values = summarize_phases(pairs, gaps, "hold", hold.id, point.id, plan.minimum_pairs)
             state = "valid"
             displacement = residual = None
             if not placement[hold.id]["valid"]:

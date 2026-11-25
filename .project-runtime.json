@@ -16,6 +16,10 @@
       "command": "python3 -B -m tools.verify_workflow"
     },
     {
+      "workflow_id": "graded",
+      "command": "python3 -B -m tools.verify_workflow"
+    },
+    {
       "workflow_id": "reduction",
       "command": "python3 -B -m tools.verify_workflow"
     },

@@ -5,8 +5,10 @@ from .errors import Rejected
 KEY = re.compile(r"[A-Za-z0-9_-]{1,40}\Z")
 
 
-def fields(value, names, label):
-    if not isinstance(value, dict) or value.keys() != set(names.split()):
+def fields(value, names, label, optional=""):
+    required = set(names.split())
+    allowed = required | set(optional.split())
+    if not isinstance(value, dict) or not required <= value.keys() or not value.keys() <= allowed:
         raise Rejected(f"{label}应包含以下字段：{names}")
     return value
 

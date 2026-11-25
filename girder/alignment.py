@@ -13,7 +13,7 @@ class Pair:
 
 
 def align(plan, readings, excluded):
-    windows = WindowIndex(plan.holds)
+    windows = WindowIndex.for_plan(plan)
     channels = defaultdict(lambda: defaultdict(list))
     unassigned = []
     for row in readings.values():
@@ -27,8 +27,8 @@ def align(plan, readings, excluded):
     pairs, gaps = defaultdict(list), defaultdict(list)
     for point in plan.points:
         for tick, samples in sorted(channels[point.id].items()):
-            hold, phase = windows.find(tick)
-            group = (hold, point.id, phase)
+            kind, owner, label = windows.find(tick)
+            group = (kind, owner, point.id, label)
             refs = channels[point.reference].get(tick, [])
             if len(samples) == len(refs) == 1:
                 sample, ref = samples[0], refs[0]

@@ -7,14 +7,20 @@ const states = {
   excluded: ["已排除", "warn"],
   outside: ["窗外留存", ""],
 };
-const readingHead = ["行号", "通道", "时刻 / s", "原值 / μm", "轮次", "时相"];
+const readingHead = ["行号", "通道", "时刻 / s", "原值 / μm", "归属", "时相"];
 const positionHead = ["行号", "车轴", "车道", "轴距 / mm", "质量 / kg", "轮次"];
+
+function owner(row) {
+  if (row.scope === "graded") return row.owner;
+  if (row.scope === "hold") return row.owner;
+  return "—";
+}
 
 function cells(row, reading) {
   if (reading) {
-    return [row.id, row.channel, row.tick, row.value_um, row.hold, phases[row.phase]];
+    return [row.id, row.channel, row.tick, row.value_um, owner(row), row.phase_label ?? phases[row.phase] ?? "—"];
   }
-  return [row.id, row.axle, row.lane, row.station_mm, row.mass_kg, row.hold];
+  return [row.id, row.axle, row.lane, row.station_mm, row.mass_kg, row.owner];
 }
 
 export function connectInventory(onReview, onError) {

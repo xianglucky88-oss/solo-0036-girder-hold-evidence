@@ -1,4 +1,5 @@
 import {at, display, element, fillOptions, status, table} from "./dom.js";
+import {renderGraded} from "./graded.js";
 
 const responses = {valid: "证据齐全", coverage: "配对不足", placement: "驻位待复核"};
 
@@ -7,8 +8,14 @@ export function renderReview(draft, onTrace) {
   const caseNames = new Map(plan.cases.map((item) => [item.id, item.label]));
   const pointNames = new Map(plan.points.map((item) => [item.id, item.label]));
   at("revision").textContent = draft.revision;
-  at("placed").textContent = `${Object.values(report.placement).filter((item) => item.valid).length} / ${plan.holds.length}`;
-  at("complete").textContent = `${report.responses.filter((row) => row.state === "valid").length} / ${report.responses.length}`;
+  const gradedSteps = Object.entries(report.step_placement ?? {}).map(([id, item]) => ({...item, id}));
+  const gradedRows = report.graded ? report.graded.workorder : [];
+  const placed = Object.values(report.placement).filter((item) => item.valid).length
+    + gradedSteps.filter((item) => item.valid).length;
+  const responsesValid = report.responses.filter((row) => row.state === "valid").length
+    + gradedRows.filter((row) => row.state === "valid").length;
+  at("placed").textContent = `${placed} / ${plan.holds.length + gradedSteps.length}`;
+  at("complete").textContent = `${responsesValid} / ${report.responses.length + gradedRows.length}`;
   at("ready").replaceChildren(status(report.ready ? "可签出" : "待复核", report.ready ? "good" : "warn"));
   fillOptions(at("filter"), plan.holds.map((hold) => [hold.id, `${hold.id} · ${caseNames.get(hold.case)}`]), "全部轮次");
   const visible = () => {
@@ -32,6 +39,7 @@ export function renderReview(draft, onTrace) {
   };
   at("filter").onchange = visible;
   visible();
+  renderGraded(draft, onTrace);
 }
 
 export function renderJournal(draft, onRestore) {

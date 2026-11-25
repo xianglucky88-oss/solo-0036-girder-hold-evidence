@@ -7,7 +7,8 @@
       "name": "浏览器作业台",
       "paths": [
         "web/index.html",
-        "web/app.js"
+        "web/app.js",
+        "web/graded.js"
       ]
     },
     {
@@ -43,7 +44,8 @@
         "girder/phase_samples.py",
         "girder/deflection.py",
         "girder/repeats.py",
-        "girder/envelopes.py"
+        "girder/envelopes.py",
+        "girder/graded.py"
       ]
     },
     {
@@ -155,6 +157,27 @@
       "success": "排除和恢复可复核",
       "failure": "过期代次返回 409，阻止重复修改",
       "verification": "review、coverage、restore"
+    },
+    {
+      "id": "graded",
+      "name": "连续分级工作单",
+      "entry": "GET /api/holds/{id} 或 /trace?hold=G1",
+      "module_ids": [
+        "desk",
+        "placement",
+        "pairing",
+        "reduction",
+        "evidence",
+        "release"
+      ],
+      "steps": [
+        "按本级车道、轴位和总质量验收台阶",
+        "以首空载同一零点求台阶位移和整次残余",
+        "双端合格且质量差在对照容差内才采用回程差"
+      ],
+      "success": "低级回程差 +3 μm、整次残余 +1 μm",
+      "failure": "首尾公共窗缺配对或对照超差缺项阻止签出",
+      "verification": "graded"
     },
     {
       "id": "archive",

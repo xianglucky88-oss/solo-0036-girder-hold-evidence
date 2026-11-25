@@ -20,11 +20,29 @@ def compare_editions(store, old, new):
     rows = []
     for row in right["report"]["responses"]:
         before = index[row["hold"], row["point"]]
-        delta = {}
-        for key in ("loaded_um", "residual_um"):
-            delta[key] = encode(Fraction(row[key]) - Fraction(before[key]))
+        delta = {key: encode(Fraction(row[key]) - Fraction(before[key])) for key in ("loaded_um", "residual_um")}
         left_evidence = evidence(left_survey, left["report"]["placement"][row["hold"]], before)
         right_evidence = evidence(right_survey, right["report"]["placement"][row["hold"]], row)
         rows.append(dict(hold=row["hold"], point=row["point"], change=delta,
                          evidence_changed=left_evidence != right_evidence))
-    return dict(old=old, new=new, rows=rows)
+    return dict(old=old, new=new, rows=rows, graded=_compare_graded(left, right))
+
+
+def _graded_index(report):
+    graded = report.get("graded")
+    return {} if graded is None else {(row["level"], row["point"]): row for row in graded["workorder"]}
+
+
+def _compare_graded(left, right):
+    before = _graded_index(left["report"])
+    rows = []
+    for row in _graded_index(right["report"]).values():
+        prior = before.get((row["level"], row["point"]))
+        if prior is None:
+            continue
+        delta = {}
+        for key in ("difference_um", "residual_um"):
+            delta[key] = None if row[key] is None or prior[key] is None else encode(Fraction(row[key]) - Fraction(prior[key]))
+        rows.append(dict(level=row["level"], point=row["point"], change=delta,
+                         adopted=row["state"] == "valid", adopted_before=prior["state"] == "valid"))
+    return rows

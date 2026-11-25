@@ -5,6 +5,8 @@ from .errors import Rejected
 from .validation import fields, key, number
 
 PHASES = ("before", "loaded", "after")
+FIRST_EMPTY = "first_empty"
+FINAL_EMPTY = "final_empty"
 
 
 @dataclass(frozen=True)
@@ -29,17 +31,39 @@ def parse_hold(item):
 
 
 class WindowIndex:
-    def __init__(self, holds):
-        self.entries = sorted((start, end, hold.id, phase) for hold in holds
-                              for phase, (start, end) in zip(PHASES, hold.windows))
+    """Half-open window index shared by regular holds and the graded process."""
+
+    def __init__(self, entries):
+        self.entries = sorted(entries)
         if any(left[1] > right[0] for left, right in zip(self.entries, self.entries[1:])):
             raise Rejected("各轮次的采样窗口不得重叠")
         self.starts = [entry[0] for entry in self.entries]
 
+    @staticmethod
+    def entries_for(holds, graded=None):
+        entries = []
+        for hold in holds:
+            for phase, (start, end) in zip(PHASES, hold.windows):
+                entries.append((start, end, "hold", hold.id, phase))
+        if graded is not None:
+            start, end = graded.first_empty
+            entries.append((start, end, "graded", graded.id, FIRST_EMPTY))
+            for step in graded.steps:
+                start, end = step.window
+                entries.append((start, end, "graded", graded.id, step.id))
+            start, end = graded.final_empty
+            entries.append((start, end, "graded", graded.id, FINAL_EMPTY))
+        return entries
+
+    @classmethod
+    def for_plan(cls, plan):
+        return cls(cls.entries_for(plan.holds, plan.graded))
+
     def find(self, tick):
+        """Return (kind, owner, phase) for a tick inside a registered window."""
         index = bisect_right(self.starts, tick) - 1
         if index >= 0:
-            _, end, hold, phase = self.entries[index]
+            _, end, kind, owner, label = self.entries[index]
             if tick < end:
-                return hold, phase
+                return kind, owner, label
         return None
