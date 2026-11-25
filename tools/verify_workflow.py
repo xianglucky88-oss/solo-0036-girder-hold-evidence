@@ -9,8 +9,19 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from girder.httpd import Server
-from girder.jsonwire import fingerprint
+from girder.jsonwire import fingerprint, parse_json
 from girder.store import Store
+
+DEVICE_DIR = Path(__file__).resolve().parent.parent / "examples" / "devices"
+
+
+def device_payload(readings=None, sync=None):
+    return dict(
+        plan=parse_json((DEVICE_DIR / "plan.json").read_bytes()),
+        positions=(DEVICE_DIR / "positions.csv").read_text(),
+        readings=readings if readings is not None else (DEVICE_DIR / "readings.csv").read_text(),
+        sync=sync if sync is not None else (DEVICE_DIR / "sync.csv").read_text(),
+    )
 
 
 @contextmanager
@@ -109,9 +120,59 @@ def exercise(url):
           and headers["Content-Disposition"].startswith("attachment"), "download 历史版本独立下载及摘要")
 
 
+def exercise_devices(url):
+    get = lambda path: request(url, path)[0]
+    post = lambda path, body, expected=200: request(url, path, body, expected)[0]
+    sample = device_payload()
+    created = post("/api/holds", sample)
+    run = f"/api/holds/{created['id']}"
+    draft = get(run)
+    report = draft["report"]
+    check(report["contract"] == "hold-reduction-v2" and report["ready"], "device-intake 跨采集机资料导入并可签出")
+    p1 = next(row for row in report["responses"] if row["point"] == "P1")
+    p2 = next(row for row in report["responses"] if row["point"] == "P2")
+    loaded = p1["phases"]["loaded"]["pairs"][0]
+    check(loaded["tick"] == "10.1" and loaded["point_row"] == "P1-L" and loaded["reference_row"] == "R1-L"
+          and p2["phases"]["loaded"]["pairs"][0]["reference_row"] == "R1-L",
+          "device-pairing 容差内唯一候选成对且参考跨测点复用")
+    check(p1["loaded_um"] == -20 and p1["residual_um"] == 4, "device-responses 按试验时钟三相位移")
+    unsynced = get(f"{run}/inventory?kind=reading&state=outside")
+    check({row["id"]: row["reason"] for row in unsynced["rows"]} ==
+          {"P1-OUT": "no_sync_evidence", "P1-UNK": "no_sync_evidence"},
+          "device-inventory 无同步证据原行留存并说明原因")
+    trace = get(f"{run}/trace?hold=H1&point=P1")
+    check({entry["id"] for entry in trace["sync_observations"]} >= {"S-D1-1", "S-D2-2"}
+          and next(row for row in trace["readings"] if row["id"] == "P1-L")["local_tick"] == "111.1"
+          and next(row for row in trace["readings"] if row["id"] == "P1-L")["tick"] == "10.1",
+          "device-trace 核回本机时刻与同步观测")
+    # 同测点再收到试验时刻 10.55 秒的读数，驻载不再有成对
+    rival_readings = sample["readings"] + "P1-L2,P1,D1,111.55,31\n"
+    rival = post("/api/holds", device_payload(readings=rival_readings))
+    rival_run = f"/api/holds/{rival['id']}"
+    rival_report = get(rival_run)["report"]
+    rival_p1 = next(row for row in rival_report["responses"] if row["point"] == "P1")
+    check(not rival_report["ready"] and not rival_p1["phases"]["loaded"]["pairs"]
+          and {gap["reason"] for gap in rival_p1["phases"]["loaded"]["gaps"]} == {"point_ambiguous"},
+          "device-competition 竞争读数使驻载有效对清零并留缺口")
+    post(f"{rival_run}/release", {"revision": 0}, 409)
+    post(f"{rival_run}/review", dict(revision=0, kind="reading", row_id="P1-L2",
+                                     action="exclude", reason="剔除竞争原行"))
+    restored = get(rival_run)["report"]
+    check(restored["ready"] and next(row for row in restored["responses"] if row["point"] == "P1")
+          ["phases"]["loaded"]["pairs"][0]["point_row"] == "P1-L",
+          "device-restore 排除竞争原行后恢复原配对并可签出")
+    # 倒退的同步观测整包退件，且无落库
+    regressive = sample["sync"].replace("S-D1-3,D1,121,20", "S-D1-3,D1,109,20")
+    post("/api/holds", device_payload(sync=regressive), 400)
+    post("/api/holds", device_payload(sync=sample["sync"] + "S-D3-1,D3,1,1\n"), 400)
+    post("/api/holds", {key: value for key, value in sample.items() if key != "sync"}, 400)
+    check(len(get("/api/holds")) >= 2, "device-reject 矛盾、单观测或缺同步表退件且无落库")
+
+
 def main():
     with temporary_server() as url:
         exercise(url)
+        exercise_devices(url)
 
 
 if __name__ == "__main__":

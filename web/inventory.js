@@ -5,15 +5,22 @@ const phases = {before: "空载", loaded: "驻载", after: "撤载"};
 const states = {
   active: ["参与归约", "good"],
   excluded: ["已排除", "warn"],
-  outside: ["窗外留存", ""],
+  outside: ["未入窗", ""],
 };
-const readingHead = ["行号", "通道", "时刻 / s", "原值 / μm", "轮次", "时相"];
+const reasons = {
+  outside_window: "落在试验窗口外",
+  no_sync_evidence: "无同步证据，不能配对",
+};
+const readingHead = ["行号", "通道", "采集机", "本机时刻 / s", "试验时刻 / s", "原值 / μm", "轮次", "时相", "未入窗原因"];
 const positionHead = ["行号", "车轴", "车道", "轴距 / mm", "质量 / kg", "轮次"];
 
+function readingCells(row) {
+  return [row.id, row.channel, row.device ?? "共用时钟", row.local_tick ?? "—", row.tick, row.value_um,
+          row.hold ?? "—", phases[row.phase] ?? "—", row.reason ? status(reasons[row.reason], "warn") : "—"];
+}
+
 function cells(row, reading) {
-  if (reading) {
-    return [row.id, row.channel, row.tick, row.value_um, row.hold, phases[row.phase]];
-  }
+  if (reading) return readingCells(row);
   return [row.id, row.axle, row.lane, row.station_mm, row.mass_kg, row.hold];
 }
 

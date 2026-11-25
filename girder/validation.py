@@ -6,8 +6,16 @@ KEY = re.compile(r"[A-Za-z0-9_-]{1,40}\Z")
 
 
 def fields(value, names, label):
-    if not isinstance(value, dict) or value.keys() != set(names.split()):
+    required = set(names.split())
+    if not isinstance(value, dict) or not required <= value.keys():
         raise Rejected(f"{label}应包含以下字段：{names}")
+    return value
+
+
+def optional_fields(value, names, label):
+    allowed = set(names.split())
+    if not isinstance(value, dict) or not value.keys() <= allowed:
+        raise Rejected(f"{label}只可包含以下字段：{names}")
     return value
 
 

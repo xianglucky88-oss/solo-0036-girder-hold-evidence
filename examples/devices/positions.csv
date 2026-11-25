@@ -1,0 +1,3 @@
+id,hold,axle,lane,station_mm,mass_kg
+PD1,H1,AX_F,L1,10110,8300
+PD2,H1,AX_R,L1,13790,9700

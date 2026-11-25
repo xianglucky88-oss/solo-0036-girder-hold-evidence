@@ -1,3 +1,4 @@
+from .clockmap import format_clock
 from .exact import encode, median
 from .windows import PHASES
 
@@ -10,6 +11,7 @@ def summarize_phases(pairs, gaps, hold, point, minimum):
         value = median(pair.adjusted for pair in members) if len(members) >= minimum else None
         values[phase] = value
         summaries[phase] = dict(median_um=encode(value), pair_count=len(members),
-                                pairs=[dict(tick=pair.tick, point_row=pair.point_row, reference_row=pair.reference_row,
-                                            adjusted_um=pair.adjusted) for pair in members], gaps=gaps.get(key, []))
+                                pairs=[dict(tick=format_clock(pair.tick), point_row=pair.point_row,
+                                            reference_row=pair.reference_row, adjusted_um=pair.adjusted)
+                                       for pair in members], gaps=gaps.get(key, []))
     return summaries, values

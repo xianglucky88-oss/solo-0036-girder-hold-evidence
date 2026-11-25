@@ -36,7 +36,7 @@ class Handler(BaseHTTPRequestHandler):
                 if self.headers.get_content_type() != "application/json":
                     raise Rejected("请求类型须为 JSON", 415)
                 length = self.headers.get("Content-Length", "")
-                if not re.fullmatch(r"[0-9]{1,9}", length) or not 1 <= int(length) <= 1_050_000:
+                if not re.fullmatch(r"[0-9]{1,9}", length) or not 1 <= int(length) <= 3_050_000:
                     raise Rejected("导入包大小非法或超限", 413)
                 self.json(self.server.api.write(route.path, parse_json(self.rfile.read(int(length)))))
             elif route.path.startswith("/api/"):

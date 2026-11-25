@@ -2,6 +2,7 @@ from dataclasses import asdict
 
 from .errors import Rejected
 from .review import exclusions
+from .trace import reading_row
 from .windows import WindowIndex
 
 PAGE_SIZE = 50
@@ -25,30 +26,45 @@ def read_filter(params):
     return kind, state, match.casefold(), int(page)
 
 
-def identify(row, excluded, windows):
-    assignment = windows.find(row.tick) if windows else (row.hold, None)
+def identify_reading(row, excluded, windows, outside_reasons):
     if row.id in excluded:
-        state = "excluded"
-    elif assignment is None:
-        state = "outside"
-    else:
-        state = "active"
-    hold, phase = assignment or (None, None)
-    return asdict(row) | {"state": state, "hold": hold, "phase": phase}
+        return reading_row(row) | {"state": "excluded", "hold": None, "phase": None, "reason": None}
+    if row.id in outside_reasons:
+        return reading_row(row) | {"state": "outside", "hold": None, "phase": None,
+                                   "reason": outside_reasons[row.id]}
+    hold, phase = windows.find(row.tick)
+    return reading_row(row) | {"state": "active", "hold": hold, "phase": phase, "reason": None}
+
+
+def outside_reasons(survey, excluded):
+    windows = WindowIndex(survey.plan.holds)
+    reasons = {}
+    for row in survey.readings.values():
+        if row.id in excluded:
+            continue
+        if row.sync_state == "no_sync_evidence":
+            reasons[row.id] = "no_sync_evidence"
+        elif windows.find(row.tick) is None:
+            reasons[row.id] = "outside_window"
+    return reasons
 
 
 def inventory(survey, journal, params):
     kind, state, match, requested_page = read_filter(params)
     excluded = exclusions(journal)[kind]
-    readings = kind == "reading"
-    rows = survey.readings if readings else survey.positions
-    windows = WindowIndex(survey.plan.holds) if readings else None
+    is_reading = kind == "reading"
+    rows = survey.readings if is_reading else survey.positions
+    windows = WindowIndex(survey.plan.holds) if is_reading else None
+    reasons = outside_reasons(survey, excluded) if is_reading else {}
     matches = []
     for row in rows.values():
-        subject = row.channel if readings else row.axle
+        subject = row.channel if is_reading else row.axle
         if match and match not in row.id.casefold() and match not in subject.casefold():
             continue
-        entry = identify(row, excluded, windows)
+        if is_reading:
+            entry = identify_reading(row, excluded, windows, reasons)
+        else:
+            entry = asdict(row) | {"state": "excluded" if row.id in excluded else "active", "reason": None}
         if state == "all" or entry["state"] == state:
             matches.append(entry)
     pages = max(1, (len(matches) + PAGE_SIZE - 1) // PAGE_SIZE)

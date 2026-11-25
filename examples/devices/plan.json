@@ -1,0 +1,67 @@
+{
+  "id": "LUTING_BRIDGE_B",
+  "label": "鹭汀跨采集机演练",
+  "span_mm": 24000,
+  "references": [
+    "R1"
+  ],
+  "points": [
+    {
+      "id": "P1",
+      "label": "跨中一",
+      "station_mm": 12000,
+      "reference": "R1",
+      "sign": 1
+    },
+    {
+      "id": "P2",
+      "label": "跨中二",
+      "station_mm": 12000,
+      "reference": "R1",
+      "sign": 1
+    }
+  ],
+  "cases": [
+    {
+      "id": "CENTER",
+      "label": "内车道驻载",
+      "lane": "L1",
+      "target_kg": 18000,
+      "tolerance_kg": 100,
+      "axles": [
+        {
+          "id": "AX_F",
+          "target_mm": 10100,
+          "tolerance_mm": 80
+        },
+        {
+          "id": "AX_R",
+          "target_mm": 13800,
+          "tolerance_mm": 80
+        }
+      ]
+    }
+  ],
+  "holds": [
+    {
+      "id": "H1",
+      "case": "CENTER",
+      "before": [
+        0,
+        10
+      ],
+      "loaded": [
+        10,
+        20
+      ],
+      "after": [
+        20,
+        30
+      ]
+    }
+  ],
+  "minimum_pairs": 1,
+  "residual_limit_um": 8,
+  "repeat_limit_um": 12,
+  "pair_tolerance_s": "0.30"
+}

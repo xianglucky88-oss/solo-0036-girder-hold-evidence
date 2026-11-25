@@ -2,9 +2,11 @@ import {api} from "./api.js";
 import {at} from "./dom.js";
 
 async function readFiles() {
-  const files = ["plan-file", "positions-file", "readings-file"].map((id) => at(id).files[0]);
-  const [plan, positions, readings] = await Promise.all(files.map((file) => file.text()));
-  return {plan, positions, readings};
+  const files = ["plan-file", "positions-file", "readings-file", "sync-file"].map((id) => at(id).files[0]);
+  const [plan, positions, readings, sync] = await Promise.all(files.map((file) => (file ? file.text() : "")));
+  const payload = {plan, positions, readings};
+  if (sync) payload.sync = sync;
+  return payload;
 }
 
 export function connectIntake(onImported, onError) {

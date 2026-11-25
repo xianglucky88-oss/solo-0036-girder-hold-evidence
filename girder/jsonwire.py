@@ -1,11 +1,14 @@
 import hashlib
 import json
+from fractions import Fraction
 
+from .clockmap import format_clock
 from .errors import Rejected
 
 
 def canonical(value):
-    return json.dumps(value, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
+    return json.dumps(value, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"),
+                      default=lambda item: format_clock(item) if isinstance(item, Fraction) else item)
 
 
 def fingerprint(value):

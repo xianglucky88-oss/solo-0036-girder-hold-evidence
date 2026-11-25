@@ -12,12 +12,13 @@
     },
     {
       "id": "intake",
-      "name": "原始三源解析",
+      "name": "原始多源解析",
       "paths": [
         "girder/intake.py",
         "girder/plan.py",
         "girder/position_input.py",
-        "girder/reading_input.py"
+        "girder/reading_input.py",
+        "girder/clockmap.py"
       ]
     },
     {
@@ -30,10 +31,11 @@
     },
     {
       "id": "pairing",
-      "name": "窗口同刻配对",
+      "name": "试验时钟归相与容差配对",
       "paths": [
         "girder/windows.py",
-        "girder/alignment.py"
+        "girder/alignment.py",
+        "girder/clockmap.py"
       ]
     },
     {
@@ -91,13 +93,13 @@
         "store"
       ],
       "steps": [
-        "读取三源",
-        "验证引用和窗口",
+        "读取多源资料与同步观测",
+        "验证引用、窗口和钟差单调性",
         "按输入摘要入库"
       ],
       "success": "重复内容复用同一份资料",
-      "failure": "窗口冲突返回 400 且无落库",
-      "verification": "intake-invalid、intake"
+      "failure": "窗口冲突或同步观测倒退返回 400 且无落库",
+      "verification": "intake-invalid、intake、device-intake、device-reject"
     },
     {
       "id": "reduction",
@@ -111,12 +113,13 @@
       ],
       "steps": [
         "逐轴核对",
-        "归属窗口并同刻配对",
+        "匀速钟差换算并归属窗口",
+        "容差内互为唯一候选地配对",
         "依覆盖情况计算三相结果"
       ],
       "success": "H1 跨中内侧驻载为 -119 μm，残余为 4 μm",
       "failure": "缺两条同刻参考时只影响共享参考的两个测点",
-      "verification": "placement、pairing、responses、repeats、envelopes、coverage"
+      "verification": "placement、pairing、responses、repeats、envelopes、coverage、device-pairing、device-competition、device-restore"
     },
     {
       "id": "trace",
@@ -179,6 +182,8 @@
   "complexity": {
     "mechanisms": [
       "互斥半开窗口索引",
+      "相邻同步观测间匀速钟差换算",
+      "容差内互为唯一候选的配对",
       "共享参考的同刻证据配对",
       "逐轴与全轮门控",
       "按草稿代次提交裁定",

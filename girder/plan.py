@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+from fractions import Fraction
 
+from .clockmap import parse_clock
 from .errors import Rejected
 from .layout import Point, parse_point
 from .loadcase import LoadCase, parse_case
-from .validation import fields, key, number, records, text
+from .validation import fields, key, number, optional_fields, records, text
 from .windows import Hold, WindowIndex, parse_hold
 
 
@@ -19,9 +21,12 @@ class Plan:
     minimum_pairs: int
     residual_limit_um: int
     repeat_limit_um: int
+    pair_tolerance_s: Fraction
 
 
 def parse_plan(data):
+    optional_fields(data, "id label span_mm references points cases holds minimum_pairs residual_limit_um "
+                          "repeat_limit_um pair_tolerance_s", "试验计划")
     fields(data, "id label span_mm references points cases holds minimum_pairs residual_limit_um repeat_limit_um", "试验计划")
     span = number(data["span_mm"], "跨长", 1)
     refs = data["references"]
@@ -40,6 +45,8 @@ def parse_plan(data):
     if {hold.case for hold in holds} != {case.id for case in cases}:
         raise Rejected("每个工况至少需要一轮，且轮次必须引用已登记工况")
     WindowIndex(holds)
+    tolerance = parse_clock(data["pair_tolerance_s"], "配对允许时差", 0, 100) if "pair_tolerance_s" in data else Fraction(0)
     return Plan(key(data["id"], "计划号"), text(data["label"], "计划名"), span, tuple(refs), tuple(points),
                 tuple(cases), tuple(holds), number(data["minimum_pairs"], "最低配对数", 1, 100),
-                number(data["residual_limit_um"], "残余位移复核线"), number(data["repeat_limit_um"], "重复差复核线"))
+                number(data["residual_limit_um"], "残余位移复核线"), number(data["repeat_limit_um"], "重复差复核线"),
+                tolerance)
