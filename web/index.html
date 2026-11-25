@@ -35,6 +35,7 @@
       <nav class="tabs" aria-label="试验资料视图">
         <button type="button" data-view="review" aria-pressed="true">工况复核</button>
         <button type="button" data-view="profiles" aria-pressed="false">断面与复测</button>
+        <button type="button" data-view="retests" aria-pressed="false">补测履约</button>
         <button type="button" data-view="raw" aria-pressed="false">原始记录</button>
         <button type="button" data-view="editions" aria-pressed="false">签出与比对</button>
       </nav>
@@ -47,6 +48,28 @@
         <div class="section-head"><div><h2>断面包络</h2><p>下挠为负值，单位为微米。区间端点保留所有并列控制项。</p></div></div>
         <div id="envelopes" class="envelopes"></div>
         <h2 class="section-subtitle">同工况重复性</h2><div id="repeats" class="table-wrap"></div>
+      </section>
+      <section id="retests" class="view" hidden>
+        <div class="section-head">
+          <div><h2>缺证义务与替补履约</h2><p>先求最多能补齐的项数；仅当某项义务在每种最大安排中都由同一补测轮承担时，归属才唯一、可确认。登记先后不决定归属。</p></div>
+        </div>
+        <div id="retest-obligations" class="table-wrap"></div>
+        <h2 class="section-subtitle">补测轮资格</h2>
+        <div id="retest-rounds" class="table-wrap"></div>
+        <h2 class="section-subtitle">登记补测</h2>
+        <form id="retest-form" class="retest-form">
+          <input type="hidden" id="retest-revision">
+          <label>补测编号<input id="retest-id" required maxlength="40" pattern="[A-Za-z0-9_-]{1,40}" placeholder="R1"></label>
+          <label>名称<input id="retest-label" required maxlength="100" placeholder="第一次补测"></label>
+          <label>工况<select id="retest-case" required></select></label>
+          <label>空载窗口<input id="retest-before-start" type="number" required> <span>至</span> <input id="retest-before-end" type="number" required></label>
+          <label>驻载窗口<input id="retest-loaded-start" type="number" required> <span>至</span> <input id="retest-loaded-end" type="number" required></label>
+          <label>撤载窗口<input id="retest-after-start" type="number" required> <span>至</span> <input id="retest-after-end" type="number" required></label>
+          <label>逐轴驻位 CSV<input id="retest-positions" type="file" accept=".csv,text/csv" required></label>
+          <label>位移采样 CSV<input id="retest-readings" type="file" accept=".csv,text/csv" required></label>
+          <button class="accent">登记补测</button>
+        </form>
+        <details class="journal"><summary>补测裁定与归属记录</summary><div id="retest-journal" class="table-wrap"></div></details>
       </section>
       <section id="raw" class="view" hidden>
         <div class="section-head"><div><h2>原始记录</h2><p>按来源和归约状态查找原始行，窗外记录也可回查。</p></div></div>

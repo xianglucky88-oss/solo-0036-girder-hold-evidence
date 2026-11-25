@@ -4,8 +4,10 @@ import {connectEditions} from "./editions.js";
 import {connectIntake} from "./intake.js";
 import {connectInventory} from "./inventory.js";
 import {renderProfiles} from "./profiles.js";
+import {connectRetests} from "./retests.js";
 import {renderJournal, renderReview} from "./review.js";
 import {connectTrace} from "./trace.js";
+import {element, table} from "./dom.js";
 
 let currentDraft, requestOrder = 0;
 let activeView = "review";
@@ -23,6 +25,19 @@ const trace = connectTrace(async (run, message) => {
 }, onError);
 const inventory = connectInventory(trace.reviewRow, onError);
 const editions = connectEditions(notice, onError);
+const retests = connectRetests(notice, onError);
+
+function renderRetestJournal(draft) {
+  const container = at("retest-journal");
+  if (!container || draft.report.contract !== "hold-reduction-v2") return;
+  const {votes, substitutions} = draft.retest_journal;
+  const rows = [
+    ...votes.map((item) => [item.revision, "裁定", item.retest_id, item.row_id,
+                            item.action === "exclude" ? "排除" : "恢复", item.reason]),
+    ...substitutions.map((item) => [item.revision, "归属确认", item.retest_id, item.hold, "替补", item.reason]),
+  ].sort((a, b) => a[0] - b[0]);
+  table(container, ["代次", "类型", "补测轮", "对象", "动作", "理由"], rows, "暂无补测裁定或归属记录");
+}
 
 async function showView(view) {
   activeView = view;
@@ -52,6 +67,13 @@ async function refresh(requested) {
   renderReview(draft, (hold, point, label) => trace.show(draft.id, hold, point, label));
   renderProfiles(draft);
   renderJournal(draft, (kind, id) => trace.reviewRow(draft.id, draft.revision, kind, id, "restore"));
+  const caseSelect = at("retest-case");
+  if (caseSelect) {
+    caseSelect.replaceChildren(...draft.plan.cases.map((item) => new Option(item.label, item.id)));
+    at("retest-revision").value = draft.revision;
+  }
+  retests.render(draft);
+  renderRetestJournal(draft);
   await showView(activeView);
 }
 

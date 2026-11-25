@@ -14,7 +14,11 @@ function group(body, name, headers, rows) {
 
 function renderRows(body, title, headers, rows, action, kind) {
   const columns = action ? [...headers, "裁定"] : headers;
-  const values = rows.map(([id, ...rest]) => action ? [id, ...rest, action(kind, id)] : [id, ...rest]);
+  const values = rows.map(([id, ...rest]) => {
+    const meta = rest[rest.length - 1];
+    const payload = rest.slice(0, -1);
+    return action ? [id, ...payload, action(kind, id, meta || {})] : [id, ...payload];
+  });
   group(body, title, columns, values);
 }
 
@@ -25,6 +29,7 @@ export function renderEvidence(body, trace, action) {
   ]));
   renderRows(body, "驻位原始行", ["行号", "车轴", "车道", "轴距 / mm", "质量 / kg", "CSV 行"], trace.positions.map((row) => [
     row.id, row.axle, row.lane, row.station_mm, row.mass_kg, row.line,
+    {scope: row.scope || "base", retest_id: row.retest_id || null},
   ]), action, "position");
   for (const [key, phase] of Object.entries(phaseNames)) {
     const evidence = trace.response.phases[key];
@@ -37,5 +42,6 @@ export function renderEvidence(body, trace, action) {
   }
   renderRows(body, "采样原始行", ["行号", "通道", "时刻 / s", "原值 / μm", "CSV 行"], trace.readings.map((row) => [
     row.id, row.channel, row.tick, row.value_um, row.line,
+    {scope: row.scope || "base", retest_id: row.retest_id || null},
   ]), action, "reading");
 }

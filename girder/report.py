@@ -1,16 +1,18 @@
-from .alignment import align
-from .deflection import make_responses
-from .envelopes import make_envelopes
-from .placement import assess_placement
-from .repeats import summarize_repeats
-
-CONTRACT = "hold-reduction-v1"
+from .reduction_v1 import reduce_survey as _legacy
+from .retest_reduction import CONTRACT, reduce_with_retests
+from .retest_survey import build_retest_holds
+from .retests import retest_exclusions
+from .windows import WindowIndex
 
 
-def reduce_survey(survey, exclusions):
-    placement = assess_placement(survey.plan, survey.positions, exclusions.get("position", set()))
-    pairs, gaps, unassigned = align(survey.plan, survey.readings, exclusions.get("reading", set()))
-    responses = make_responses(survey.plan, placement, pairs, gaps)
-    return dict(contract=CONTRACT, ready=all(row["state"] == "valid" for row in responses), placement=placement,
-                responses=responses, repeats=summarize_repeats(survey.plan, responses),
-                envelopes=make_envelopes(survey.plan, responses), unassigned_readings=unassigned)
+def reduce_survey(survey, exclusion_state, records=(), retest_vote_events=(), confirmed=()):
+    """兼容无补测的旧入口；有补测登记时进入 v2 归约合同。"""
+    if not records:
+        return _legacy(survey, exclusion_state)
+    plan = survey.plan
+    WindowIndex(list(plan.holds) + build_retest_holds(plan, records))
+    return reduce_with_retests(survey, plan, records, exclusion_state,
+                               retest_exclusions(retest_vote_events), confirmed)
+
+
+__all__ = ["CONTRACT", "reduce_survey"]

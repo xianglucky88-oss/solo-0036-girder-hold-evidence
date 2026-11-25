@@ -28,6 +28,36 @@ CREATE TABLE IF NOT EXISTS girder_editions (
     document TEXT NOT NULL,
     UNIQUE(run, revision)
 );
+CREATE TABLE IF NOT EXISTS girder_retests (
+    id INTEGER PRIMARY KEY,
+    run INTEGER NOT NULL REFERENCES girder_runs(id),
+    revision INTEGER NOT NULL,
+    retest_id TEXT NOT NULL,
+    label TEXT NOT NULL,
+    case_id TEXT NOT NULL,
+    hold TEXT NOT NULL,
+    positions TEXT NOT NULL,
+    readings TEXT NOT NULL,
+    UNIQUE(run, retest_id)
+);
+CREATE TABLE IF NOT EXISTS girder_retest_votes (
+    run INTEGER NOT NULL REFERENCES girder_runs(id),
+    revision INTEGER NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN ('retest_position', 'retest_reading')),
+    row_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK(action IN ('exclude', 'restore')),
+    reason TEXT NOT NULL,
+    retest_id TEXT NOT NULL,
+    PRIMARY KEY(run, revision)
+);
+CREATE TABLE IF NOT EXISTS girder_substitutions (
+    run INTEGER NOT NULL REFERENCES girder_runs(id),
+    revision INTEGER NOT NULL,
+    hold TEXT NOT NULL,
+    retest_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    PRIMARY KEY(run, revision)
+);
 """
 
 

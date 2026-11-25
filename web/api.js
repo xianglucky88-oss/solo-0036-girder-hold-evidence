@@ -21,6 +21,11 @@ export const api = {
   inventory: (run, query) => request(`/api/holds/${run}/inventory?${new URLSearchParams(query)}`),
   trace: (run, hold, point) => request(`/api/holds/${run}/trace?${new URLSearchParams({hold, point})}`),
   decide: (run, revision, kind, row_id, action, reason) => request(`/api/holds/${run}/review`, {revision, kind, row_id, action, reason}),
+  registerRetest: (run, payload) => request(`/api/holds/${run}/retests`, payload),
+  decideRetest: (run, revision, retest_id, kind, row_id, action, reason) =>
+    request(`/api/holds/${run}/retest-review`, {revision, retest_id, kind, row_id, action, reason}),
+  confirmSubstitution: (run, revision, hold, retest_id, reason) =>
+    request(`/api/holds/${run}/substitutions`, {revision, hold, retest_id, reason}),
   release: (run, revision) => request(`/api/holds/${run}/release`, {revision}),
   editions: () => request("/api/editions"),
   edition: (id) => request(`/api/editions/${id}`),

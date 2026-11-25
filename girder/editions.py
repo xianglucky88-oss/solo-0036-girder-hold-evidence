@@ -3,6 +3,7 @@ import json
 from .draft import materialize
 from .errors import Rejected
 from .jsonwire import canonical, fingerprint
+from .retests import load_retests
 from .runs import require_revision, require_run
 from .validation import fields, number
 
@@ -10,12 +11,15 @@ from .validation import fields, number
 def release(store, run, data):
     fields(data, "revision", "签出请求")
     expected = number(data["revision"], "草稿代次")
-    row, journal, _, report = materialize(store, run)
+    row, journal, _, report, retest_journal = materialize(store, run)
     require_revision(row, expected)
     if not report["ready"]:
-        raise Rejected("尚有轮次或测点缺少有效证据，无法签出", 409)
+        raise Rejected("尚有义务缺少有效履约，无法签出", 409)
+    with store.transaction() as db:
+        retest_records = load_retests(db, run)
     document = dict(input_hash=row["input_hash"], plan_hash=row["plan_hash"], run=run, revision=expected,
-                    source=row["source"], journal=journal, report=report)
+                    source=row["source"], journal=journal, retest_journal=retest_journal,
+                    retest_records=retest_records, report=report)
     digest = fingerprint(document)
     with store.transaction(write=True) as db:
         require_revision(require_run(db, run), expected)

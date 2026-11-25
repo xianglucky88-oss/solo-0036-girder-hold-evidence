@@ -78,6 +78,18 @@
         "girder/editions.py",
         "girder/compare.py"
       ]
+    },
+    {
+      "id": "retest",
+      "name": "补测登记与替补履约",
+      "paths": [
+        "girder/retest_input.py",
+        "girder/retest_survey.py",
+        "girder/retests.py",
+        "girder/substitution.py",
+        "girder/retest_reduction.py",
+        "web/retests.js"
+      ]
     }
   ],
   "workflows": [
@@ -174,6 +186,26 @@
       "success": "同代次可幂等签出，旧证据独立读取",
       "failure": "缺覆盖时禁止签出",
       "verification": "release、compare、archive、download"
+    },
+    {
+      "id": "substitution",
+      "name": "补测登记与替补归属",
+      "entry": "POST /api/holds/{id}/retests 与 /substitutions",
+      "module_ids": [
+        "retest",
+        "store",
+        "reduction",
+        "desk"
+      ],
+      "steps": [
+        "校验补测窗口互斥与整轮合格",
+        "同工况构造义务—补测资格图",
+        "求最大匹配并以交替图强连通分量判定强制边",
+        "负责人确认后按已落实义务归约并冻结"
+      ],
+      "success": "唯一归属可确认，重复差与包络追溯实测轮",
+      "failure": "归属不唯一或仍有缺项时整次不能签出",
+      "verification": "forced、ambiguous、shortage、case-isolation、freeze、unadopted"
     }
   ],
   "complexity": {
@@ -182,7 +214,9 @@
       "共享参考的同刻证据配对",
       "逐轴与全轮门控",
       "按草稿代次提交裁定",
-      "签出快照和证据对比"
+      "签出快照和证据对比",
+      "二分图最大匹配与交替图强连通分量强制边判定",
+      "补测整轮资格门控与已落实义务归约"
     ]
   }
 }
