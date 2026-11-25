@@ -10,7 +10,18 @@ def evidence(survey, placement, match):
             reading_ids.update((pair["point_row"], pair["reference_row"]))
         for gap in phase["gaps"]:
             reading_ids.update(gap["point_rows"] + gap["reference_rows"])
-    positions = [asdict(survey.positions[row_id]) for axle in placement["axles"] for row_id in axle["evidence"]]
+    position_ids = []
+    for axle in placement["axles"]:
+        for row_id in axle["evidence"]:
+            if row_id not in position_ids:
+                position_ids.append(row_id)
+    for row_id in placement.get("extra_evidence", ()):
+        if row_id not in position_ids:
+            position_ids.append(row_id)
+    for row_id in placement.get("evidence_row_ids", ()):
+        if row_id not in position_ids:
+            position_ids.append(row_id)
+    positions = [asdict(survey.positions[row_id]) for row_id in position_ids if row_id in survey.positions]
     readings = [asdict(survey.readings[row_id]) for row_id in sorted(reading_ids)]
     return dict(response=match, placement=placement, positions=positions, readings=readings)
 

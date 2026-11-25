@@ -45,7 +45,7 @@ def inventory(survey, journal, params):
     windows = WindowIndex(survey.plan.holds) if readings else None
     matches = []
     for row in rows.values():
-        subject = row.channel if readings else row.axle
+        subject = row.channel if readings else " ".join(part for part in (row.axle, getattr(row, "vehicle", None)) if part)
         if match and match not in row.id.casefold() and match not in subject.casefold():
             continue
         entry = identify(row, excluded, windows)
@@ -54,4 +54,6 @@ def inventory(survey, journal, params):
     pages = max(1, (len(matches) + PAGE_SIZE - 1) // PAGE_SIZE)
     page = min(requested_page, pages)
     offset = (page - 1) * PAGE_SIZE
-    return dict(kind=kind, total=len(matches), page=page, pages=pages, rows=matches[offset:offset + PAGE_SIZE])
+    return dict(kind=kind, total=len(matches), page=page, pages=pages,
+                vehicle_contract=any(getattr(case, "multi_vehicle", False) for case in survey.plan.cases),
+                rows=matches[offset:offset + PAGE_SIZE])

@@ -13,7 +13,31 @@ def release(store, run, data):
     row, journal, _, report = materialize(store, run)
     require_revision(row, expected)
     if not report["ready"]:
-        raise Rejected("尚有轮次或测点缺少有效证据，无法签出", 409)
+        placement_messages = []
+        placement_details = []
+        codes = set()
+        for hold_id, placement in report.get("placement", {}).items():
+            if placement.get("valid"):
+                continue
+            assignment_state = placement.get("assignment_state")
+            if assignment_state == "ambiguous":
+                message = f"{hold_id} 驻位归属歧义，存在多种合规归属"
+                code = "assignment_ambiguous"
+            elif assignment_state == "none":
+                message = f"{hold_id} 无合规驻位归属"
+                code = "no_compliant_assignment"
+            else:
+                message = f"{hold_id} 驻位证据无效"
+                code = "placement_invalid"
+            codes.add(code)
+            placement_messages.append(message)
+            placement_details.append(dict(hold=hold_id, code=code, message=message))
+        detail = "；".join(placement_messages)
+        message = "尚有轮次或测点缺少有效证据，无法签出"
+        if detail:
+            message += f"：{detail}"
+        code = next(iter(codes)) if len(codes) == 1 else "release_blocked"
+        raise Rejected(message, 409, code=code, details=placement_details or None)
     document = dict(input_hash=row["input_hash"], plan_hash=row["plan_hash"], run=run, revision=expected,
                     source=row["source"], journal=journal, report=report)
     digest = fingerprint(document)

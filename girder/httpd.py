@@ -45,7 +45,12 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self.asset(route.path)
         except Rejected as exc:
-            self.json({"error": str(exc)}, exc.status)
+            payload = {"error": str(exc)}
+            if exc.code:
+                payload["code"] = exc.code
+            if exc.details is not None:
+                payload["details"] = exc.details
+            self.json(payload, exc.status)
         except (ValueError, TimeoutError):
             self.json({"error": "请求目标或内容无效"}, 400)
         except sqlite3.OperationalError as exc:

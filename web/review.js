@@ -17,8 +17,19 @@ export function renderReview(draft, onTrace) {
     at("rounds").replaceChildren(...holds.map(({id}) => {
       const item = report.placement[id];
       const chips = element("div", undefined, "round-chip");
-      chips.append(element("strong", id), status(item.valid ? "驻位有效" : "驻位待复核", item.valid ? "good" : "warn"),
-                   element("span", `${display(item.total_kg)} kg`, "number"));
+      let label = "驻位待复核";
+      let tone = "warn";
+      if (item.valid) {
+        label = "驻位有效";
+        tone = "good";
+      } else if (item.assignment_state === "ambiguous") {
+        label = "归属有歧义";
+      } else if (item.assignment_state === "none") {
+        label = "无合规归属";
+      }
+      const chip = status(label, tone);
+      if (item.message) chip.title = item.message;
+      chips.append(element("strong", id), chip, element("span", `${display(item.total_kg)} kg`, "number"));
       return chips;
     }));
     const rows = report.responses.filter((row) => !holdFilter || row.hold === holdFilter);

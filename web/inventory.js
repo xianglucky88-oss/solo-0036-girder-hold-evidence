@@ -8,13 +8,14 @@ const states = {
   outside: ["窗外留存", ""],
 };
 const readingHead = ["行号", "通道", "时刻 / s", "原值 / μm", "轮次", "时相"];
-const positionHead = ["行号", "车轴", "车道", "轴距 / mm", "质量 / kg", "轮次"];
+const positionHead = ["行号", "轮次", "车号", "车轴", "车道", "轴距 / mm", "质量 / kg"];
 
-function cells(row, reading) {
+function cells(row, reading, vehicleContract = false) {
   if (reading) {
     return [row.id, row.channel, row.tick, row.value_um, row.hold, phases[row.phase]];
   }
-  return [row.id, row.axle, row.lane, row.station_mm, row.mass_kg, row.hold];
+  const vehicle = row.vehicle || (vehicleContract ? "待推断" : "—");
+  return [row.id, row.hold, vehicle, row.axle, row.lane, row.station_mm, row.mass_kg];
 }
 
 export function connectInventory(onReview, onError) {
@@ -31,7 +32,7 @@ export function connectInventory(onReview, onError) {
       const action = row.state === "excluded" ? "restore" : "exclude";
       const button = element("button", action === "exclude" ? "排除" : "恢复");
       button.onclick = () => onReview(currentRun, payload.revision, payload.kind, row.id, action);
-      return [...cells(row, reading), row.line, status(...states[row.state]), button];
+      return [...cells(row, reading, payload.vehicle_contract), row.line, status(...states[row.state]), button];
     }), "没有符合条件的原始行");
     page = payload.page;
     at("inventory-page").textContent = `第 ${page} / ${payload.pages} 页 · ${payload.total} 行`;
